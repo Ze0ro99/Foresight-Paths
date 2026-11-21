@@ -62,10 +62,11 @@ export async function POST(req: NextRequest) {
   const locale = parseLocale(body.locale);
 
   const agentMode: CloudAgentMode =
-    body.agentMode === 'solohost_defender' ||
-    body.agentMode === 'cipher_sentinel'
-      ? body.agentMode
-      : 'hermes_hunter';
+    body.agentMode === 'solohost_defender'
+      ? 'solohost_defender'
+      : body.agentMode === 'cipher_sentinel'
+        ? 'cipher_sentinel'
+        : 'hermes_hunter';
 
   const region: RegionViewKey =
     body.region === 'mena' ||
