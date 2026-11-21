@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Cairo, IBM_Plex_Sans_Arabic, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
+import Script from 'next/script';
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         className="bg-[#07070B] text-[#F3F4F6] antialiased selection:bg-[#9333EA]/30 selection:text-white"
       >
         {children}
+        <Script src="https://sdk.minepi.com/pi-sdk.js" strategy="afterInteractive" />
       </body>
     </html>
   );
