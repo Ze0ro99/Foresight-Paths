@@ -816,7 +816,7 @@ export default function ACHMatrixView({
                 >
                   {QKEY_DOMAINS.map((q) => (
                     <option key={q.id} value={q.id}>
-                      {q.index}. {getQKeyCopy(q.id, locale)}
+                      {q.index}. {getQKeyCopy(q.id, locale).label}
                     </option>
                   ))}
                 </select>
