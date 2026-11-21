@@ -76,7 +76,7 @@ const CLOUD_I18N: Record<
   en: {
     title: 'Cloud SoloHost & Hermes Runner (Mobile-Ready, Zero PC Required)',
     subtitle:
-      'No local PC or terminal required: Hermes Autonomous Hunter and SoloHost Defense Workers execute server-side in the cloud, correlating live global sensors with Encrypted Map coordinates, Gematria/Pi math, SHA-256 attestation, and x402 batch receipts directly from your phone browser.',
+      'No local PC or terminal required: Hermes Autonomous Hunter and SoloHost Defense Workers execute server-side in the cloud, correlating live global sensors with Encrypted Map coordinates, Gematria/Pi math, SHA-256 evidence digest; payment settlement is not implemented.',
     selectAgent: 'Select Cloud Agent',
     hermesOpt: 'Hermes Cloud Hunter — Continuous Correlation Scanner',
     solohostOpt: 'SoloHost Cloud Defender — Oracle & Circuit Breaker Worker',
@@ -242,7 +242,7 @@ export default function CloudAgentView({
             <h3 className="text-base font-bold text-white">{t.title}</h3>
           </div>
           <span className="font-latin-math text-xs text-[#4ADE80]">
-            POST /api/cloud-agent/run · Cloud Sandbox Active
+            POST /api/cloud-agent/run · Preview only; execution disabled
           </span>
         </div>
 
