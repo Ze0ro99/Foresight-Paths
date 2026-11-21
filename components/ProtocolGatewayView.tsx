@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Server,
   Activity,
@@ -187,7 +187,7 @@ const PROTOCOL_UI: Record<
     sdkPlaceholder: '// Trigger an action above to inspect server-authoritative responses...',
     pirc1Title: 'Usage and Integration Readiness',
     pirc1Sub: 'These are interface counters only, not attestations, financial settlements, or external approvals.',
-    kpiEvents: 'Verified Map Events',
+    kpiEvents: 'Map Records',
     kpiSignals: 'Global Sensor Signals',
     kpiAttestations: 'Displayed Records',
     kpiSettled: 'Pi Key Configuration',
@@ -251,7 +251,7 @@ const PROTOCOL_UI: Record<
     sdkPlaceholder: '// Lancez une vérification ci-dessus pour inspecter la réponse...',
     pirc1Title: 'Compteurs d’Utilité Réelle PiRC1 & Conformité Pi Next',
     pirc1Sub: 'Compteurs d’interface uniquement ; ils ne prouvent aucune attestation ni transaction.',
-    kpiEvents: 'Faits Cartographiés',
+    kpiEvents: 'Enregistrements cartographiés',
     kpiSignals: 'Signaux Mondiaux',
     kpiAttestations: 'Enregistrements affichés',
     kpiSettled: 'Configuration de la clé Pi',
@@ -310,7 +310,7 @@ const PROTOCOL_UI: Record<
     btnAuthMe: '1. Verifikasi Auth (/api/pi/verify · auth_me)',
     btnU2AFlow: '2. Alur Lengkap U2A (0.1 Pi Setuju → Selesai)',
     btnAdsVerify: '3. Rewarded ads dinonaktifkan',
-    btnTamper403: '4. Uji Tolak Manipulasi Harga (HTTP 403)',
+    btnTamper403: '4. Uji manipulasi harga hanya di CI',
     sdkRespHeading: 'Output Verifikasi Kontrak Server (/api/pi/verify)',
     sdkPlaceholder: '// Pilih aksi uji di atas untuk melihat respons otoritatif server...',
     pirc1Title: 'Penghitung Utilitas Nyata PiRC1 & Kepatuhan Pi Next',
@@ -374,7 +374,7 @@ const PROTOCOL_UI: Record<
     btnAuthMe: '1. Xác Thực /v2/me (/api/pi/verify)',
     btnU2AFlow: '2. Chu Trình U2A (0,1 Pi Duyệt → Hoàn Tất)',
     btnAdsVerify: '3. Quảng cáo thưởng đã tắt',
-    btnTamper403: '4. Thử Chặn Sửa Giá Trình Duyệt (HTTP 403)',
+    btnTamper403: '4. Kiểm tra giả mạo chỉ chạy trong CI',
     sdkRespHeading: 'Kết Quả Kiểm Tra Máy Chủ (/api/pi/verify)',
     sdkPlaceholder: '// Nhấn một nút ở trên để xem phản hồi thực của máy chủ...',
     pirc1Title: 'Bộ Đếm Tiện Ích Thực PiRC1 & Lộ Trình Hackathon Pi Next',
@@ -436,6 +436,7 @@ export default function ProtocolGatewayView({
   const [sdkHttpStatus, setSdkHttpStatus] = useState<number | null>(null);
   const [sdkResponseJson, setSdkResponseJson] = useState<string>('');
   const [loadingSdkCall, setLoadingSdkCall] = useState(false);
+  const piInitialized = useRef(false);
 
   const refreshGateways = async () => {
     try {
@@ -554,10 +555,13 @@ export default function ProtocolGatewayView({
         return;
       }
 
-      window.Pi.init({
-        version: '2.0',
-        sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false',
-      });
+      if (!piInitialized.current) {
+        window.Pi.init({
+          version: '2.0',
+          sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false',
+        });
+        piInitialized.current = true;
+      }
       const auth = await window.Pi.authenticate(
         ['username', 'payments'],
         (payment) => {
