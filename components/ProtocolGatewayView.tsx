@@ -95,14 +95,14 @@ const PROTOCOL_UI: Record<
   }
 > = {
   ar: {
-    mcpTitle: 'بوابة الاستدعاء البرمجي المباشر: MCP Streamable HTTP + معيار الدفع x402 V2',
+    mcpTitle: 'بوابة أدوات MCP — استكشاف للقراءة فقط',
     mcpDesc:
-      'اختبر استدعاء نقطة النهاية الفعلية /api/x402/mcp مباشرة: بدون توقيع دفع يعيد الخادم HTTP 402 مع ترويسة PAYMENT-REQUIRED، وعند التوقيع يعيد 200 OK وإيصال PAYMENT-RESPONSE.',
+      'تتيح هذه الواجهة اكتشاف الأدوات وقراءة مخططاتها. تنفيذ الأدوات المدفوع والتسوية غير متاحين حتى دمج وسيط دفع موثوق والتحقق من التسوية.',
     probeLabel: 'معامل الاختبار (phrase → decode_gematria_audit)',
     btnList: '1. استكشاف tools/list (مجاني)',
-    btn402: '2. طلب غير مدفوع (HTTP 402)',
+    btn402: '2. محاولة تنفيذ مدفوع (مرفوضة بأمان)',
     btn200: '3. تنفيذ مدفوع: معطّل حتى اكتمال التكامل',
-    pirc206Heading: 'مراقبة الحالة التشغيلية والأوراكل (PiRC-206)',
+    pirc206Heading: 'حالة بوابة MCP الفعلية',
     srvStatus: 'حالة الخادم: ',
     circuitBreaker: 'قاطع الدائرة: ',
     piMedian: 'وسيط PI/USD: ',
@@ -121,15 +121,15 @@ const PROTOCOL_UI: Record<
     btnTamper403: '4. اختبار العبث متاح ضمن اختبارات CI فقط',
     sdkRespHeading: 'مخرجات عقد التحقق الخادمي (/api/pi/verify)',
     sdkPlaceholder: '// اختر أحد اختبارات Pi SDK v2.0 أو حظر التلاعب لعرض استجابة الخادم...',
-    pirc1Title: 'عداد المنفعة الحقيقية PiRC1 والامتثال لهاكاثون Pi Next',
-    pirc1Sub: 'مؤشرات نشاط موثقة فعلياً للتأهيل إلى Launchpad وسيولة الربع الأول 2027',
+    pirc1Title: 'مؤشرات الاستخدام والجاهزية',
+    pirc1Sub: 'عدادات الواجهة الحالية؛ لا تمثل اعتمادات أو تسويات مالية أو موافقات خارجية.',
     kpiEvents: 'الأحداث والإحداثيات المرصودة',
     kpiSignals: 'إشارات الاستشعار العالمية',
-    kpiAttestations: 'البصمات الموثقة SHA-256',
-    kpiSettled: 'تسويات البوابة المؤكدة',
-    timelineBadge: 'انطلاق: 19 نوفمبر 2026 ← الموعد النهائي: 5 يناير 2027 (23:59 PST)',
+    kpiAttestations: 'السجلات المعروضة',
+    kpiSettled: 'تهيئة مفتاح Pi',
+    timelineBadge: 'حالة التكامل: مرحلية',
     timelineText:
-      'يعمل التطبيق بوضعية التصفح المفتوح للضيوف على .pinet.com دون جدار تسجيل قسري، ومع جاهزية SoloHost & Hermes السحابية من الهاتف.',
+      'التصفح العام متاح. وظائف Pi والمدفوعات والوكلاء السحابية تخضع لبوابات إعداد وتحقق مستقلة.',
     pinetTitle: 'تكامل المصادقة الخادمية (Pi SDK v2.0) ونمط الاستكشاف المفتوح عبر بوابة PiNet',
     pinetSteps: [
       {
@@ -166,7 +166,7 @@ const PROTOCOL_UI: Record<
     btnList: '1. Discover tools/list (Free)',
     btn402: '2. Unpaid Call (HTTP 402)',
     btn200: '3. Signed PAYMENT-SIGNATURE (200 OK)',
-    pirc206Heading: 'Operational Health & Oracle Telemetry (PiRC-206)',
+    pirc206Heading: 'Live MCP Gateway Status',
     srvStatus: 'Server State: ',
     circuitBreaker: 'Circuit Breaker: ',
     piMedian: 'PI/USD Median: ',
@@ -185,15 +185,15 @@ const PROTOCOL_UI: Record<
     btnTamper403: '4. Price-tamper test runs in CI only',
     sdkRespHeading: 'Server Contract Verification Output (/api/pi/verify)',
     sdkPlaceholder: '// Trigger an action above to inspect server-authoritative responses...',
-    pirc1Title: 'PiRC1 Live Real-Utility Counters & Pi Next Compliance',
-    pirc1Sub: 'Verifiable activity counters toward Q1 2027 Launchpad & DEX liquidity criteria',
+    pirc1Title: 'Usage and Integration Readiness',
+    pirc1Sub: 'These are interface counters only, not attestations, financial settlements, or external approvals.',
     kpiEvents: 'Verified Map Events',
     kpiSignals: 'Global Sensor Signals',
-    kpiAttestations: 'SHA-256 Attestations',
-    kpiSettled: 'Confirmed Settlements',
-    timelineBadge: 'Kickoff: Nov 19, 2026 → Final Deadline: Jan 5, 2027 (23:59 PST)',
+    kpiAttestations: 'Displayed Records',
+    kpiSettled: 'Pi Key Configuration',
+    timelineBadge: 'Integration status: staged',
     timelineText:
-      'Guest-first open exploration on .pinet.com with zero forced auth walls, plus mobile-ready SoloHost & Hermes cloud orchestration.',
+      'Public browsing is available. Pi payments and cloud-agent actions remain gated on configuration and independent verification.',
     pinetTitle: 'Server-Authoritative Pi SDK v2.0 Flow & PiNet Open Exploration',
     pinetSteps: [
       {
@@ -230,7 +230,7 @@ const PROTOCOL_UI: Record<
     btnList: '1. Explorer tools/list (Gratuit)',
     btn402: '2. Appel non payé (HTTP 402)',
     btn200: '3. Exécution payante désactivée',
-    pirc206Heading: 'Santé Opérationnelle & Télémétrie Oracle (PiRC-206)',
+    pirc206Heading: 'État réel de la passerelle MCP',
     srvStatus: 'État Serveur : ',
     circuitBreaker: 'Disjoncteur : ',
     piMedian: 'Médiane PI/USD : ',
@@ -294,7 +294,7 @@ const PROTOCOL_UI: Record<
     btnList: '1. Cek tools/list (Gratis)',
     btn402: '2. Panggilan Belum Dibayar (HTTP 402)',
     btn200: '3. Tanda Tangan PAYMENT-SIGNATURE (200 OK)',
-    pirc206Heading: 'Kesehatan Operasional & Telemetri Oracle (PiRC-206)',
+    pirc206Heading: 'Status Gateway MCP',
     srvStatus: 'Status Server: ',
     circuitBreaker: 'Pemutus Sirkuit: ',
     piMedian: 'Median PI/USD: ',
@@ -358,7 +358,7 @@ const PROTOCOL_UI: Record<
     btnList: '1. Khám Phá tools/list (Miễn Phí)',
     btn402: '2. Truy Vấn Chưa Trả Phí (HTTP 402)',
     btn200: '3. Thực thi trả phí đã tắt',
-    pirc206Heading: 'Giám Sát Sức Khỏe Vận Hành & Oracle (PiRC-206)',
+    pirc206Heading: 'Trạng thái cổng MCP',
     srvStatus: 'Trạng Thái Máy Chủ: ',
     circuitBreaker: 'Cầu Dao Ngắt Mạch: ',
     piMedian: 'Trung Vị PI/USD: ',
@@ -626,7 +626,7 @@ export default function ProtocolGatewayView({
             <h3 className="text-base font-bold text-white">{ui.mcpTitle}</h3>
           </div>
           <span className="font-latin-math text-xs text-[#4ADE80]">
-            POST /api/x402/mcp · Pi Testnet / Mainnet Ready
+            POST /api/x402/mcp · Read-only discovery
           </span>
         </div>
 
@@ -752,7 +752,7 @@ export default function ProtocolGatewayView({
             <h3 className="text-base font-bold text-white">{ui.sdkSectionTitle}</h3>
           </div>
           <span className="font-latin-math text-xs text-[#C084FC]">
-            POST /api/pi/verify
+            POST /api/pi/verify · Server verification
           </span>
         </div>
 
