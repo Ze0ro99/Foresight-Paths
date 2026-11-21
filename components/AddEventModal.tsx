@@ -267,7 +267,7 @@ export default function AddEventModal({
               >
                 {TRACKS.map((k) => (
                   <option key={k} value={k}>
-                    {getTrackCopy(k, locale).label}
+                    {getTrackCopy(k, locale)}
                   </option>
                 ))}
               </select>
