@@ -27,7 +27,7 @@ This is an engineering status record, not an independent security audit, proof o
 - Geographic proximity, gematria, π-based arithmetic, Q-Clock alignment, and visual adjacency do not establish causation, coordination, prediction, or threat severity.
 - Narrative-map items must remain explicitly attributed interpretations and visually separable from observed events.
 - Keep original artifacts, source URLs, capture dates, translation notes, and analyst interpretations as separate fields.
-- USGS/NASA EONET polling is partial on-request data retrieval, not continuous global ingestion or a durable scheduled pipeline.
+- USGS/NASA EONET data is fetched by the browser on initial load and periodically while the page is active (45-second client polling). This is partial source polling, not continuous background ingestion or a durable scheduled pipeline.
 
 ## Release gates
 
