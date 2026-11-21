@@ -224,9 +224,13 @@ Produce realistic intelligence/infrastructure analysis in Arabic (missionBriefAr
           missionBriefLocalized?: string;
           recommendedActions?: string[];
         };
-        if (parsed.missionBriefAr) missionBriefAr = parsed.missionBriefAr;
-        if (parsed.missionBriefEn) missionBriefEn = parsed.missionBriefEn;
-        if (parsed.missionBriefLocalized) {
+        if (typeof parsed.missionBriefAr === 'string') {
+          missionBriefAr = parsed.missionBriefAr;
+        }
+        if (typeof parsed.missionBriefEn === 'string') {
+          missionBriefEn = parsed.missionBriefEn;
+        }
+        if (typeof parsed.missionBriefLocalized === 'string') {
           missionBriefLocalized = parsed.missionBriefLocalized;
         }
         if (Array.isArray(parsed.recommendedActions) && parsed.recommendedActions.length > 0) {
