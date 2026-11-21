@@ -135,7 +135,7 @@ const PROTOCOL_UI: Record<
       {
         step: '1. تصفح مفتوح عبر PiNet',
         detail:
-          'جميع الخرائط والأخبار الموثقة ومعاينات الوكلاء متاحة على نطاق .pinet.com من Chrome/Safari دون حجب بهبوط قسري.',
+          'الخرائط والبحث متاحان للزوار دون تسجيل إجباري. إجراءات Pi الحساسة تتطلب تحققًا من الخادم.',
       },
       {
         step: '2. مصادقة وتحقق /me على الخادم',
@@ -159,13 +159,13 @@ const PROTOCOL_UI: Record<
     docsSectionSub: 'أربع وثائق مرجعية تغطي الحدود المعمارية والاقتصاد المزدوج وحماية التسعير وخطة التسليم',
   },
   en: {
-    mcpTitle: 'Live Protocol Endpoint: MCP Streamable HTTP + x402 V2 Payment Rail',
+    mcpTitle: 'MCP Tool Gateway — Read-only discovery',
     mcpDesc:
-      'Probe the live /api/x402/mcp endpoint directly: unsigned calls return HTTP 402 with PAYMENT-REQUIRED, while signed vouchers return 200 OK + PAYMENT-RESPONSE.',
+      'This endpoint currently supports read-only tool discovery. Paid execution and settlement remain disabled until a trusted facilitator and verified settlement flow are implemented.',
     probeLabel: 'Probe Parameter (phrase → decode_gematria_audit)',
     btnList: '1. Discover tools/list (Free)',
     btn402: '2. Unpaid Call (HTTP 402)',
-    btn200: '3. Signed PAYMENT-SIGNATURE (200 OK)',
+    btn200: '3. Paid execution disabled',
     pirc206Heading: 'Live MCP Gateway Status',
     srvStatus: 'Server State: ',
     circuitBreaker: 'Circuit Breaker: ',
@@ -178,7 +178,7 @@ const PROTOCOL_UI: Record<
     headerDecodedHeading: 'Decoded x402 Header (PAYMENT-REQUIRED / PAYMENT-RESPONSE)',
     sdkSectionTitle: 'Pi SDK v2.0 & ECONOMIC_ENGINE_API_CONTRACT Verifier',
     sdkDesc:
-      'Calls live /api/pi/verify to test server /v2/me authentication, 3-step U2A approve→complete with Idempotency Keys, Pi.Ads verification, and HTTP 403 client price tamper rejection.',
+      'Authenticates through the official Pi Browser SDK and verifies the access token on the server. Payment entitlements and rewarded ads remain disabled until durable storage and trusted verification are configured.',
     btnAuthMe: '1. Verify Auth (/api/pi/verify · auth_me)',
     btnU2AFlow: '2. Payment flow disabled until order ledger is configured',
     btnAdsVerify: '3. Rewarded ads disabled',
@@ -199,7 +199,7 @@ const PROTOCOL_UI: Record<
       {
         step: '1. Open PiNet Guest Access',
         detail:
-          'All live maps, OSINT telemetry, and agent previews load immediately on .pinet.com across Chrome/Safari without a hard login wall.',
+          'Public map and research views are available without a forced login. Pi-only actions are gated behind server-side verification.',
       },
       {
         step: '2. Server /v2/me Validation',
@@ -223,9 +223,9 @@ const PROTOCOL_UI: Record<
     docsSectionSub: 'Four core blueprints covering ecosystem boundaries, 0.0001 Pi economics, server contract hardening, and submission readiness',
   },
   fr: {
-    mcpTitle: 'Passerelle Directe : MCP Streamable HTTP + Paiement x402 V2',
+    mcpTitle: 'Passerelle MCP — Découverte en lecture seule',
     mcpDesc:
-      'Interrogez directement /api/x402/mcp : sans signature le serveur répond HTTP 402 (PAYMENT-REQUIRED), et avec signature il retourne 200 OK + PAYMENT-RESPONSE.',
+      'Cette interface permet uniquement la découverte des outils. L’exécution payante et le règlement restent désactivés jusqu’à l’intégration d’un facilitateur fiable.',
     probeLabel: 'Paramètre de test (phrase → decode_gematria_audit)',
     btnList: '1. Explorer tools/list (Gratuit)',
     btn402: '2. Appel non payé (HTTP 402)',
@@ -242,7 +242,7 @@ const PROTOCOL_UI: Record<
     headerDecodedHeading: 'En-tête x402 Décodé (PAYMENT-REQUIRED / PAYMENT-RESPONSE)',
     sdkSectionTitle: 'Vérificateur Pi SDK v2.0 & Contrat ECONOMIC_ENGINE_API_CONTRACT',
     sdkDesc:
-      'Appelle /api/pi/verify pour tester /v2/me, le cycle U2A en 3 étapes avec Idempotency-Key, Pi.Ads et le rejet HTTP 403 des prix falsifiés côté navigateur.',
+      'Utilise le SDK officiel Pi Browser puis vérifie le jeton côté serveur. Les droits payants et les récompenses publicitaires restent désactivés sans stockage durable et vérification fiable.',
     btnAuthMe: '1. Vérifier Auth (/api/pi/verify · auth_me)',
     btnU2AFlow: '2. Paiement désactivé jusqu’à configuration du registre',
     btnAdsVerify: '3. Publicités récompensées désactivées',
@@ -250,20 +250,20 @@ const PROTOCOL_UI: Record<
     sdkRespHeading: 'Réponse Serveur Autoritaire (/api/pi/verify)',
     sdkPlaceholder: '// Lancez une vérification ci-dessus pour inspecter la réponse...',
     pirc1Title: 'Compteurs d’Utilité Réelle PiRC1 & Conformité Pi Next',
-    pirc1Sub: 'Métriques d’activité vérifiées pour l’éligibilité Launchpad / DEX T1 2027',
+    pirc1Sub: 'Compteurs d’interface uniquement ; ils ne prouvent aucune attestation ni transaction.',
     kpiEvents: 'Faits Cartographiés',
     kpiSignals: 'Signaux Mondiaux',
-    kpiAttestations: 'Empreintes SHA-256',
-    kpiSettled: 'Règlements Confirmés',
+    kpiAttestations: 'Enregistrements affichés',
+    kpiSettled: 'Configuration de la clé Pi',
     timelineBadge: 'Lancement : 19 nov. 2026 → Clôture : 5 janv. 2027 (23:59 PST)',
     timelineText:
-      'Accès invité ouvert sur .pinet.com sans écran de blocage, avec orchestration cloud SoloHost & Hermes sans PC.',
+      'La carte publique et les vues de recherche sont accessibles sans connexion forcée. Les actions Pi nécessitent une validation serveur.',
     pinetTitle: 'Flux Serveur Pi SDK v2.0 & Exploration Ouverte PiNet',
     pinetSteps: [
       {
         step: '1. Accès Invité PiNet',
         detail:
-          'Toutes les cartes et prévisions sont accessibles sur .pinet.com sans mur de connexion forcé.',
+          'Les cartes publiques et les vues de recherche sont accessibles sans connexion forcée. Les actions Pi sensibles exigent une vérification serveur.',
       },
       {
         step: '2. Validation Serveur /v2/me',
@@ -287,13 +287,13 @@ const PROTOCOL_UI: Record<
     docsSectionSub: 'Quatre références détaillant frontières, économie 0,0001 Pi, garde-fous serveur et livraison',
   },
   id: {
-    mcpTitle: 'Endpoint Protokol Langsung: MCP Streamable HTTP + Rel Pembayaran x402 V2',
+    mcpTitle: 'Gateway MCP — Penemuan hanya-baca',
     mcpDesc:
-      'Uji langsung /api/x402/mcp: tanpa tanda tangan server membalas HTTP 402 (PAYMENT-REQUIRED), sedangkan dengan tanda tangan membalas 200 OK + PAYMENT-RESPONSE.',
+      'Endpoint ini hanya menyediakan penemuan alat baca-saja. Eksekusi berbayar dan penyelesaian dinonaktifkan sampai fasilitator tepercaya terintegrasi.',
     probeLabel: 'Parameter Uji (phrase → decode_gematria_audit)',
     btnList: '1. Cek tools/list (Gratis)',
     btn402: '2. Panggilan Belum Dibayar (HTTP 402)',
-    btn200: '3. Tanda Tangan PAYMENT-SIGNATURE (200 OK)',
+    btn200: '3. Eksekusi berbayar dinonaktifkan',
     pirc206Heading: 'Status Gateway MCP',
     srvStatus: 'Status Server: ',
     circuitBreaker: 'Pemutus Sirkuit: ',
@@ -306,7 +306,7 @@ const PROTOCOL_UI: Record<
     headerDecodedHeading: 'Header x402 Terdekode (PAYMENT-REQUIRED / PAYMENT-RESPONSE)',
     sdkSectionTitle: 'Penguji Pi SDK v2.0 & Kontrak Keamanan (ECONOMIC_ENGINE_API_CONTRACT)',
     sdkDesc:
-      'Menguji /api/pi/verify langsung untuk validasi /v2/me, alur 3-langkah U2A dengan Idempotency-Key, Pi.Ads, dan penolakan HTTP 403 atas manipulasi harga browser.',
+      'Menggunakan SDK resmi Pi Browser dan memverifikasi token di server. Hak berbayar dan hadiah iklan tetap dinonaktifkan sampai penyimpanan permanen dan verifikasi tepercaya tersedia.',
     btnAuthMe: '1. Verifikasi Auth (/api/pi/verify · auth_me)',
     btnU2AFlow: '2. Alur Lengkap U2A (0.1 Pi Setuju → Selesai)',
     btnAdsVerify: '3. Rewarded ads dinonaktifkan',
@@ -314,20 +314,20 @@ const PROTOCOL_UI: Record<
     sdkRespHeading: 'Output Verifikasi Kontrak Server (/api/pi/verify)',
     sdkPlaceholder: '// Pilih aksi uji di atas untuk melihat respons otoritatif server...',
     pirc1Title: 'Penghitung Utilitas Nyata PiRC1 & Kepatuhan Pi Next',
-    pirc1Sub: 'Metrik aktivitas terverifikasi menuju kriteria Launchpad / DEX Q1 2027',
+    pirc1Sub: 'Penghitung antarmuka saja; bukan bukti attestasi atau transaksi.',
     kpiEvents: 'Kejadian Peta Terverifikasi',
     kpiSignals: 'Sinyal Sensor Global',
-    kpiAttestations: 'Bukti Hash SHA-256',
-    kpiSettled: 'Pembayaran Terkonfirmasi',
+    kpiAttestations: 'Catatan yang ditampilkan',
+    kpiSettled: 'Konfigurasi kunci Pi',
     timelineBadge: 'Mulai: 19 Nov 2026 → Batas Akhir: 5 Jan 2027 (23:59 PST)',
     timelineText:
-      'Eksplorasi tamu terbuka di .pinet.com tanpa kunci login paksa, lengkap dengan orkestrasi cloud SoloHost & Hermes dari ponsel.',
+      'Peta publik dan tampilan riset dapat diakses tanpa login paksa. Aksi Pi memerlukan verifikasi sisi server.',
     pinetTitle: 'Alur Server Pi SDK v2.0 & Eksplorasi Terbuka PiNet',
     pinetSteps: [
       {
         step: '1. Akses Tamu Terbuka PiNet',
         detail:
-          'Semua peta dan pratinjau agen langsung terbuka di .pinet.com lewat Chrome/Safari tanpa layar login pemblokir.',
+          'Peta publik dan riset tersedia tanpa login wajib. Tindakan Pi sensitif memerlukan verifikasi server.',
       },
       {
         step: '2. Validasi Server /v2/me',
@@ -351,9 +351,9 @@ const PROTOCOL_UI: Record<
     docsSectionSub: 'Cetak biru pemisahan standar, ekonomi 0.0001 Pi, kontrak keamanan server, dan jadwal rilis',
   },
   vi: {
-    mcpTitle: 'Cổng Giao Thức Trực Tiếp: MCP Streamable HTTP + Thanh Toán x402 V2',
+    mcpTitle: 'Cổng MCP — Khám phá chỉ đọc',
     mcpDesc:
-      'Kiểm tra trực tiếp /api/x402/mcp: gọi không chữ ký trả về HTTP 402 (PAYMENT-REQUIRED), có chữ ký trả về 200 OK kèm biên nhận PAYMENT-RESPONSE.',
+      'Endpoint này chỉ hỗ trợ khám phá công cụ chỉ đọc. Thực thi trả phí và quyết toán đang tắt cho đến khi tích hợp bộ xử lý thanh toán đáng tin cậy.',
     probeLabel: 'Tham Số Kiểm Thử (phrase → decode_gematria_audit)',
     btnList: '1. Khám Phá tools/list (Miễn Phí)',
     btn402: '2. Truy Vấn Chưa Trả Phí (HTTP 402)',
@@ -370,7 +370,7 @@ const PROTOCOL_UI: Record<
     headerDecodedHeading: 'Header x402 Đã Giải Mã (PAYMENT-REQUIRED / PAYMENT-RESPONSE)',
     sdkSectionTitle: 'Trình Xác Thực Pi SDK v2.0 & Hợp Đồng ECONOMIC_ENGINE_API_CONTRACT',
     sdkDesc:
-      'Gọi trực tiếp /api/pi/verify để kiểm tra xác thực /v2/me, quy trình U2A 3 bước kèm Idempotency-Key, Pi.Ads và chặn HTTP 403 khi trình duyệt sửa giá.',
+      'Dùng SDK Pi Browser chính thức và xác minh token ở máy chủ. Quyền lợi trả phí và thưởng quảng cáo vẫn tắt cho đến khi có lưu trữ bền vững và xác minh đáng tin cậy.',
     btnAuthMe: '1. Xác Thực /v2/me (/api/pi/verify)',
     btnU2AFlow: '2. Chu Trình U2A (0,1 Pi Duyệt → Hoàn Tất)',
     btnAdsVerify: '3. Quảng cáo thưởng đã tắt',
@@ -378,20 +378,20 @@ const PROTOCOL_UI: Record<
     sdkRespHeading: 'Kết Quả Kiểm Tra Máy Chủ (/api/pi/verify)',
     sdkPlaceholder: '// Nhấn một nút ở trên để xem phản hồi thực của máy chủ...',
     pirc1Title: 'Bộ Đếm Tiện Ích Thực PiRC1 & Lộ Trình Hackathon Pi Next',
-    pirc1Sub: 'Chỉ số hoạt động thực đã xác minh hướng tới chuẩn Launchpad / DEX Q1 2027',
+    pirc1Sub: 'Các bộ đếm giao diện không phải bằng chứng xác thực hoặc giao dịch.',
     kpiEvents: 'Sự Kiện Bản Đồ Xác Minh',
     kpiSignals: 'Tín Hiệu Cảm Biến Toàn Cầu',
-    kpiAttestations: 'Chữ Ký Băm SHA-256',
-    kpiSettled: 'Giao Dịch Đã Tất Toán',
+    kpiAttestations: 'Bản ghi hiển thị',
+    kpiSettled: 'Cấu hình khóa Pi',
     timelineBadge: 'Khởi động: 19/11/2026 → Hạn chót: 05/01/2027 (23:59 PST)',
     timelineText:
-      'Cho phép khách khám phá mở hoàn toàn trên .pinet.com không khóa đăng nhập, kết hợp chạy SoloHost & Hermes đám mây từ điện thoại.',
+      'Bản đồ công khai và nghiên cứu có thể truy cập mà không cần đăng nhập bắt buộc. Tác vụ Pi cần xác minh phía máy chủ.',
     pinetTitle: 'Tích Hợp Máy Chủ Pi SDK v2.0 & Mô Hình Khám Phá Mở PiNet',
     pinetSteps: [
       {
         step: '1. Truy Cập Mở PiNet',
         detail:
-          'Mọi bản đồ và tác nhân đều mở sẵn trên .pinet.com qua Chrome/Safari không ép đăng nhập trước.',
+          'Bản đồ công khai và nội dung nghiên cứu không yêu cầu đăng nhập bắt buộc. Tác vụ Pi nhạy cảm cần xác minh máy chủ.',
       },
       {
         step: '2. Xác Minh /v2/me Trên Máy Chủ',
