@@ -216,8 +216,8 @@ Produce realistic intelligence/infrastructure analysis in Arabic (missionBriefAr
         },
       });
 
-      const responseText = response.text;
-      if (typeof responseText === 'string' && responseText.length > 0) {
+      const responseText = response.text ?? '';
+      if (responseText.length > 0) {
         const parsed = JSON.parse(responseText) as {
           missionBriefAr?: string;
           missionBriefEn?: string;
