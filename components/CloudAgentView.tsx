@@ -20,6 +20,8 @@ import {
 import { REGION_VIEWBOX_PRESETS } from '@/lib/world-monitor-engine';
 import { getRegionLabel } from '@/lib/i18n';
 
+const CLOUD_AGENT_ENABLED = false;
+
 interface CloudAgentViewProps {
   locale: AppLocale;
   activeSignals: GlobalSensedSignal[];
@@ -51,9 +53,9 @@ const CLOUD_I18N: Record<
   }
 > = {
   ar: {
-    title: 'تشغيل SoloHost و Hermes سحابياً من الهاتف مباشرة (بدون حاسوب)',
+    title: 'وكلاء السحابة — وضع المعاينة فقط',
     subtitle:
-      'لا حاجة لامتلاك حاسوب أو تشغيل Node/Docker محلياً: يتم تنفيذ وكلاء Hermes Autonomous Hunter وعقود SoloHost الدفاعية بالكامل على خادمنا السحابي وربطها بإحداثيات الأحداث العالمية الحية والخرائط المشفرة ومعادلات باي (π)، مع تسوية x402 وتوثيق SHA-256 مباشرة من متصفح هاتفك.',
+      'هذه الواجهة للمعاينة فقط. تشغيل الوكلاء السحابيين وتسوية المدفوعات معطلان حتى اكتمال التحقق من مصادر البيانات والدفع على الخادم.',
     selectAgent: 'اختر الوكيل السحابي',
     hermesOpt: 'Hermes Cloud Hunter — صائد الترابطات والشفرات المستمر',
     solohostOpt: 'SoloHost Cloud Defender — حارس الأوراكل (PiRC-203/254)',
@@ -62,21 +64,21 @@ const CLOUD_I18N: Record<
     phraseLabel: 'عبارة التحليل والشفرة',
     useGemini: 'توليد خلاصة مخابراتية عبر Gemini 4 في السحابة',
     running: 'جارٍ التنفيذ في السحابة...',
-    runNow: 'تشغيل الوكيل السحابي الآن (بدون حاسوب)',
+    runNow: 'التشغيل معطل حاليًا',
     stopLoop: 'إيقاف نبض 30ث',
-    autoLoop: 'تشغيل مستمر (30ث)',
+    autoLoop: 'التشغيل التلقائي معطل',
     runErr: 'تعذر تشغيل الوكيل السحابي، حاول مجدداً.',
     corrTitle: 'أقوى الارتباطات الحية × الخرائط المشفرة (اضغط للفتح على الخريطة):',
-    readyTitle: 'جاهز للتنفيذ السحابي الفوري بدون حاسوب',
+    readyTitle: 'التنفيذ السحابي غير متاح حاليًا',
     readyDesc:
-      'اضغط على «تشغيل الوكيل السحابي الآن» لتشغيل Hermes أو SoloHost على خوادمنا السحابية مباشرة من هاتفك وربط الإحداثيات الحية بالخرائط المشفرة.',
+      'يعيد الخادم حاليًا 503 not_ready عمدًا. لا يتم تشغيل وكيل أو تأكيد دفعة حتى اجتياز بوابات الأمان والتحقق.',
     historyTitle: 'سجل الجولات السحابية المنفذة',
     riskLabel: 'الخطر',
   },
   en: {
-    title: 'Cloud SoloHost & Hermes Runner (Mobile-Ready, Zero PC Required)',
+    title: 'Cloud Agents — Preview Only',
     subtitle:
-      'No local PC or terminal required: Hermes Autonomous Hunter and SoloHost Defense Workers execute server-side in the cloud, correlating live global sensors with Encrypted Map coordinates, Gematria/Pi math, SHA-256 evidence digest; payment settlement is not implemented.',
+      'This is a preview interface only. Cloud-agent execution and payment settlement are disabled until server-side source validation and payment verification are complete.',
     selectAgent: 'Select Cloud Agent',
     hermesOpt: 'Hermes Cloud Hunter — Continuous Correlation Scanner',
     solohostOpt: 'SoloHost Cloud Defender — Oracle & Circuit Breaker Worker',
@@ -85,21 +87,21 @@ const CLOUD_I18N: Record<
     phraseLabel: 'Cipher Focus Phrase',
     useGemini: 'Enrich cloud run with Gemini 4 analysis',
     running: 'Running in Cloud...',
-    runNow: 'Run Cloud Agent Now (No PC)',
+    runNow: 'Execution currently disabled',
     stopLoop: 'Stop 30s Loop',
-    autoLoop: 'Auto-Run (30s)',
+    autoLoop: 'Auto-run disabled',
     runErr: 'Cloud agent execution failed.',
     corrTitle: 'Top Live Signals × Encrypted Map Nodes (Click to inspect on map):',
-    readyTitle: 'Ready for Instant Cloud Execution (Zero PC)',
+    readyTitle: 'Cloud execution is currently unavailable',
     readyDesc:
-      'Click Run Cloud Agent Now to run Hermes or SoloHost on our cloud backend directly from mobile.',
+      'The server intentionally returns 503 not_ready. No agent run or payment is confirmed until the security and verification gates pass.',
     historyTitle: 'Executed Cloud Agent Runs',
     riskLabel: 'Risk',
   },
   fr: {
-    title: 'Exécuteur Cloud SoloHost & Hermes (Mobile-Ready, Zéro PC Requis)',
+    title: 'Agents Cloud — Aperçu uniquement',
     subtitle:
-      'Aucun PC requis : Hermes Autonomous Hunter et SoloHost s’exécutent côté serveur, corrélant capteurs mondiaux, nœuds chiffrés, maths π, preuve SHA-256 et reçus x402 directement depuis votre navigateur mobile.',
+      'Cette interface est en aperçu uniquement. L’exécution des agents et le règlement des paiements sont désactivés jusqu’à la validation côté serveur des sources et des paiements.',
     selectAgent: 'Sélectionner l’Agent Cloud',
     hermesOpt: 'Hermes Cloud Hunter — Scanner de Corrélations Continu',
     solohostOpt: 'SoloHost Cloud Defender — Garde Oracle & Coupe-Circuit',
@@ -108,21 +110,21 @@ const CLOUD_I18N: Record<
     phraseLabel: 'Phrase Clé & Décodage',
     useGemini: 'Enrichir le scan avec Gemini 4 dans le Cloud',
     running: 'Exécution Cloud...',
-    runNow: 'Lancer l’Agent Cloud (Sans PC)',
+    runNow: 'Exécution actuellement désactivée',
     stopLoop: 'Arrêter la boucle 30s',
-    autoLoop: 'Boucle Auto (30s)',
+    autoLoop: 'Exécution automatique désactivée',
     runErr: 'Échec de l’exécution de l’agent cloud.',
     corrTitle: 'Meilleures Corrélations Temps Réel × Cartes Chiffrées (Cliquer) :',
-    readyTitle: 'Prêt pour Exécution Cloud Instantanée (Zéro PC)',
+    readyTitle: 'Exécution Cloud actuellement indisponible',
     readyDesc:
-      'Cliquez sur Lancer l’Agent Cloud pour exécuter Hermes ou SoloHost côté serveur depuis votre mobile.',
+      'Le serveur renvoie volontairement 503 not_ready. Aucune exécution ni aucun paiement ne sont confirmés avant validation des contrôles de sécurité.',
     historyTitle: 'Historique des Exécutions Cloud',
     riskLabel: 'Risque',
   },
   id: {
-    title: 'Eksekutor Cloud SoloHost & Hermes (Siap Seluler, Tanpa PC)',
+    title: 'Agen Cloud — Pratinjau Saja',
     subtitle:
-      'Tidak perlu PC lokal: Hermes Autonomous Hunter dan SoloHost berjalan penuh di server cloud, mengorelasikan sensor global langsung, simpul sandi, matematika π, hash SHA-256, dan x402 langsung dari ponsel Anda.',
+      'Antarmuka ini hanya untuk pratinjau. Eksekusi agen cloud dan penyelesaian pembayaran dinonaktifkan sampai validasi sumber dan pembayaran di sisi server selesai.',
     selectAgent: 'Pilih Agen Cloud',
     hermesOpt: 'Hermes Cloud Hunter — Pemindai Korelasi Berkelanjutan',
     solohostOpt: 'SoloHost Cloud Defender — Penjaga Oracle (PiRC-203/254)',
@@ -131,21 +133,21 @@ const CLOUD_I18N: Record<
     phraseLabel: 'Frasa Fokus Sandi',
     useGemini: 'Perkaya hasil cloud dengan analisis Gemini 4',
     running: 'Menjalankan di Cloud...',
-    runNow: 'Jalankan Agen Cloud Sekarang (Tanpa PC)',
+    runNow: 'Eksekusi saat ini dinonaktifkan',
     stopLoop: 'Hentikan Loop 30d',
-    autoLoop: 'Otomatis (30d)',
+    autoLoop: 'Eksekusi otomatis dinonaktifkan',
     runErr: 'Gagal menjalankan agen cloud.',
     corrTitle: 'Korelasi Langsung Terkuat × Simpul Peta Sandi (Klik untuk lihat):',
-    readyTitle: 'Siap Eksekusi Cloud Seketika (Tanpa PC)',
+    readyTitle: 'Eksekusi cloud saat ini tidak tersedia',
     readyDesc:
-      'Klik Jalankan Agen Cloud Sekarang untuk mengoperasikan Hermes atau SoloHost di server langsung dari ponsel.',
+      'Server sengaja mengembalikan 503 not_ready. Tidak ada agen atau pembayaran yang dikonfirmasi sebelum pemeriksaan keamanan dan verifikasi lulus.',
     historyTitle: 'Riwayat Eksekusi Agen Cloud',
     riskLabel: 'Risiko',
   },
   vi: {
-    title: 'Trình Chạy Cloud SoloHost & Hermes (Trên Di Động, Không Cần PC)',
+    title: 'Tác nhân Cloud — Chỉ xem trước',
     subtitle:
-      'Không cần máy tính cá nhân: Hermes Autonomous Hunter và SoloHost chạy hoàn toàn trên máy chủ đám mây, liên kết cảm biến toàn cầu, nút bản đồ mã hóa, toán học π, SHA-256 và x402 ngay trên điện thoại.',
+      'Đây chỉ là giao diện xem trước. Việc chạy tác nhân cloud và thanh toán bị tắt cho đến khi xác thực nguồn dữ liệu và thanh toán phía máy chủ hoàn tất.',
     selectAgent: 'Chọn Tác Nhân Đám Mây',
     hermesOpt: 'Hermes Cloud Hunter — Quét Tương Quan Liên Tục',
     solohostOpt: 'SoloHost Cloud Defender — Bảo Vệ Oracle (PiRC-203/254)',
@@ -154,12 +156,12 @@ const CLOUD_I18N: Record<
     phraseLabel: 'Cụm Từ Trọng Tâm',
     useGemini: 'Bổ sung phân tích chuyên sâu Gemini 4',
     running: 'Đang chạy trên Cloud...',
-    runNow: 'Chạy Tác Nhân Cloud Ngay (Không Cần PC)',
+    runNow: 'Hiện đã tắt thực thi',
     stopLoop: 'Dừng Vòng Lặp 30s',
-    autoLoop: 'Chạy Tự Động (30s)',
+    autoLoop: 'Đã tắt chạy tự động',
     runErr: 'Không thể khởi chạy tác nhân đám mây.',
     corrTitle: 'Liên Kết Trực Tiếp Mạnh Nhất × Bản Đồ Mã Hóa (Nhấn để xem):',
-    readyTitle: 'Sẵn Sàng Chạy Cloud Tức Thì (Không Cần PC)',
+    readyTitle: 'Hiện không thể chạy cloud',
     readyDesc:
       'Nhấn Chạy Tác Nhân Cloud Ngay để thực thi Hermes hoặc SoloHost trên máy chủ từ trình duyệt di động.',
     historyTitle: 'Lịch Sử Các Lượt Chạy Đám Mây',
@@ -183,6 +185,7 @@ export default function CloudAgentView({
   const [history, setHistory] = useState<CloudAgentRunResult[]>([]);
 
   const executeCloudRun = async (useAiOverride?: boolean) => {
+    if (!CLOUD_AGENT_ENABLED) return;
     setIsRunning(true);
     setErrorMsg(null);
     try {
@@ -216,7 +219,7 @@ export default function CloudAgentView({
   };
 
   useEffect(() => {
-    if (!autoHeartbeat) return;
+    if (!CLOUD_AGENT_ENABLED || !autoHeartbeat) return;
     const id = setInterval(() => {
       void executeCloudRun(false);
     }, 30000);
@@ -315,7 +318,7 @@ export default function CloudAgentView({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
-                disabled={isRunning}
+                disabled={true}
                 onClick={() => void executeCloudRun()}
                 className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-[#7C3AED] px-4 py-2.5 text-xs font-semibold text-white hover:bg-[#6D28D9] disabled:opacity-50"
               >
@@ -325,6 +328,7 @@ export default function CloudAgentView({
 
               <button
                 type="button"
+                disabled={true}
                 onClick={() => setAutoHeartbeat((v) => !v)}
                 className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-semibold transition-colors ${
                   autoHeartbeat

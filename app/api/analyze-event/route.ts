@@ -53,12 +53,13 @@ export async function POST(req: NextRequest) {
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
     return NextResponse.json(
       {
+        status: 'not_ready',
         error:
           locale === 'ar'
-            ? 'مفتاح GEMINI_API_KEY غير مهيأ على الخادم. يرجى التحقق من إعدادات المفاتيح في لوحة البيئة.'
-            : 'GEMINI_API_KEY is not configured on the server.',
+            ? 'ميزة التحليل بالذكاء الاصطناعي غير مهيأة بعد: يجب ضبط GEMINI_API_KEY في بيئة الخادم.'
+            : 'AI analysis is not configured yet. Set GEMINI_API_KEY in the server environment.',
       },
-      { status: 500 }
+      { status: 503 }
     );
   }
 

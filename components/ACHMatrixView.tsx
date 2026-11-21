@@ -720,6 +720,7 @@ export default function ACHMatrixView({
               .map((cm) => {
                 const tierMeta = EPISTEMIC_TIER_META[cm.tier];
                 const tierCopy = getEpistemicCopy(cm.tier, locale);
+                const qKeyCopy = getQKeyCopy(cm.qKeyDomain, locale);
                 return (
                   <div
                     key={cm.id}
@@ -733,8 +734,8 @@ export default function ACHMatrixView({
                           {tierCopy.label}
                         </span>
                         <span aria-hidden="true" className="text-[#6366F1]">·</span>
-                        <span className="text-[#A5B4FC]">
-                          Q-KEY: {getQKeyCopy(cm.qKeyDomain, locale)}
+                        <span className="text-[#A5B4FC]" title={qKeyCopy.examples}>
+                          Q-KEY: {qKeyCopy.label}
                         </span>
                       </div>
                       <span className="font-latin-math text-[#A5B4FC]">{cm.createdAt}</span>
@@ -815,7 +816,7 @@ export default function ACHMatrixView({
                 >
                   {QKEY_DOMAINS.map((q) => (
                     <option key={q.id} value={q.id}>
-                      {q.index}. {getQKeyCopy(q.id, locale)}
+                      {q.index}. {getQKeyCopy(q.id, locale).label}
                     </option>
                   ))}
                 </select>

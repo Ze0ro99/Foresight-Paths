@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
 const AUTHORITATIVE_PLAN_PRICES_PI: Record<string, number> = {
@@ -8,26 +7,20 @@ const AUTHORITATIVE_PLAN_PRICES_PI: Record<string, number> = {
   rewarded_ad_renewal: 0,
 };
 
-const settledPayments = new Map<
-  string,
-  {
-    paymentId: string;
-    planId: string;
-    amountPi: number;
-    txid: string;
-    status: 'completed';
-    verifiedAtUtc: string;
-    readBackOk: boolean;
-  }
->();
+function unavailable(message: string, status = 503) {
+  return NextResponse.json(
+    { verified: false, status: 'not_ready', error: message },
+    { status }
+  );
+}
 
 export async function GET() {
   return NextResponse.json({
-    service: 'Pi Platform Server Verification Gateway (ECONOMIC_ENGINE_API_CONTRACT)',
-    pinetGuestExploration: 'open',
-    sandboxMode: !process.env.PI_API_KEY || process.env.PI_SANDBOX_MODE === 'true',
+    service: 'Pi verification gateway',
+    status: 'restricted_until_server_verification',
+    sandboxMode: true,
     plans: AUTHORITATIVE_PLAN_PRICES_PI,
-    settledCount: settledPayments.size,
+    note: 'No identity, payment, or ad reward is confirmed by this status endpoint.',
   });
 }
 
@@ -37,9 +30,6 @@ export async function POST(req: NextRequest) {
     planId?: string;
     paymentId?: string;
     txid?: string;
-    adId?: string;
-    pioneerHandle?: string;
-    clientClaimedPrice?: number;
   };
 
   try {
@@ -48,148 +38,73 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON request body' }, { status: 400 });
   }
 
-  const action = body.action || 'auth_me';
+  const action = body.action ?? 'auth_me';
   const piApiKey = process.env.PI_API_KEY;
-  const authHeader = req.headers.get('authorization');
-  const bearerToken = authHeader?.startsWith('Bearer ')
-    ? authHeader.slice(7).trim()
-    : null;
-  const idempotencyKey = req.headers.get('idempotency-key') || '';
-
-  // Enforce ECONOMIC_ENGINE_API_CONTRACT: Never trust client-claimed pricing
-  const resolvedPlanId =
-    body.planId && body.planId in AUTHORITATIVE_PLAN_PRICES_PI
-      ? body.planId
-      : 'micro_0_0001_batch';
-  const authoritativePricePi = AUTHORITATIVE_PLAN_PRICES_PI[resolvedPlanId];
-
-  if (
-    typeof body.clientClaimedPrice === 'number' &&
-    Math.abs(body.clientClaimedPrice - authoritativePricePi) > 1e-8
-  ) {
-    return NextResponse.json(
-      {
-        error: 'ECONOMIC_ENGINE_API_CONTRACT violation: client price rejected; server-authoritative pricing enforced.',
-        authoritativePricePi,
-      },
-      { status: 403 }
-    );
-  }
+  const bearer = req.headers.get('authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1]?.trim();
 
   if (action === 'auth_me') {
-    if (piApiKey && piApiKey !== 'MY_PI_PLATFORM_SERVER_API_KEY' && bearerToken) {
-      try {
-        const res = await fetch('https://api.minepi.com/v2/me', {
-          headers: { Authorization: `Bearer ${bearerToken}` },
-          cache: 'no-store',
-        });
-        if (res.ok) {
-          const user = await res.json();
-          return NextResponse.json({
-            verified: true,
-            mode: 'live_pi_api',
-            user,
-          });
-        }
-      } catch {
-        // Fall through to structured error if real API call failed when configured
+    if (!bearer) return unavailable('A Pi-authenticated bearer token is required.', 401);
+    try {
+      const response = await fetch('https://api.minepi.com/v2/me', {
+        headers: { Authorization: `Bearer ${bearer}` },
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        return unavailable('Pi identity verification failed.', 401);
       }
+      const user = await response.json();
+      return NextResponse.json({ verified: true, mode: 'live_pi_api', user });
+    } catch {
+      return unavailable('Pi identity service is temporarily unavailable.', 502);
     }
-
-    const uidHash = crypto
-      .createHash('sha256')
-      .update(bearerToken || body.pioneerHandle || 'pinet_guest_sandbox')
-      .digest('hex')
-      .slice(0, 16);
-
-    return NextResponse.json({
-      verified: true,
-      mode: 'testnet_sandbox',
-      pinetOpenAccess: true,
-      user: {
-        uid: `pi_uid_${uidHash}`,
-        username: body.pioneerHandle || 'Pioneer_Testnet_KYC',
-        kycVerified: true,
-      },
-    });
-  }
-
-  if (action === 'rewarded_ad_verify') {
-    const adId = body.adId || `ad_${Date.now()}`;
-    return NextResponse.json({
-      verified: true,
-      adId,
-      mediator_ack_status: 'granted',
-      creditedPlanId: 'micro_0_0001_batch',
-      microFeeCoveredPi: 0.0001,
-      mode: piApiKey && piApiKey !== 'MY_PI_PLATFORM_SERVER_API_KEY' ? 'live_pi_api' : 'testnet_sandbox',
-    });
   }
 
   if (action === 'payment_approve') {
-    const paymentId = body.paymentId || `pay_${crypto.randomBytes(6).toString('hex')}`;
-    if (piApiKey && piApiKey !== 'MY_PI_PLATFORM_SERVER_API_KEY' && body.paymentId) {
-      try {
-        const approveRes = await fetch(
-          `https://api.minepi.com/v2/payments/${encodeURIComponent(body.paymentId)}/approve`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Key ${piApiKey}` },
-          }
-        );
-        if (approveRes.ok) {
-          const data = await approveRes.json();
-          return NextResponse.json({
-            approved: true,
-            paymentId,
-            planId: resolvedPlanId,
-            authoritativePricePi,
-            mode: 'live_pi_api',
-            data,
-          });
-        }
-      } catch {
-        // Controlled fallback only in sandbox mode
-      }
+    if (!piApiKey || piApiKey === 'MY_PI_PLATFORM_SERVER_API_KEY') {
+      return unavailable('Server-side Pi payment approval is not configured.');
     }
-
-    return NextResponse.json({
-      approved: true,
-      paymentId,
-      planId: resolvedPlanId,
-      authoritativePricePi,
-      mode: 'testnet_sandbox',
-      nextStep: 'Pioneer signs in Pi Wallet, then server calls payment_complete with txid',
-    });
+    if (!body.paymentId) {
+      return NextResponse.json({ error: 'paymentId is required.' }, { status: 400 });
+    }
+    const planId = body.planId && body.planId in AUTHORITATIVE_PLAN_PRICES_PI
+      ? body.planId
+      : 'micro_0_0001_batch';
+    try {
+      const response = await fetch(
+        `https://api.minepi.com/v2/payments/${encodeURIComponent(body.paymentId)}/approve`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Key ${piApiKey}` },
+          cache: 'no-store',
+        }
+      );
+      if (!response.ok) {
+        return unavailable('Pi payment approval was not confirmed by the Pi API.', 502);
+      }
+      return NextResponse.json({
+        approved: true,
+        paymentId: body.paymentId,
+        planId,
+        authoritativePricePi: AUTHORITATIVE_PLAN_PRICES_PI[planId],
+        mode: 'live_pi_api',
+        data: await response.json(),
+      });
+    } catch {
+      return unavailable('Pi payment approval service is unavailable.', 502);
+    }
   }
 
-  // action === 'payment_complete'
-  const paymentId = body.paymentId || `pay_${Date.now()}`;
-  const dedupeKey = idempotencyKey || paymentId;
-  if (settledPayments.has(dedupeKey)) {
-    return NextResponse.json({
-      completed: true,
-      idempotentReplay: true,
-      record: settledPayments.get(dedupeKey),
-    });
+  if (action === 'payment_complete') {
+    return unavailable(
+      'Payment completion is disabled until server-side Pi transaction verification and read-back are implemented.'
+    );
   }
 
-  const txid = body.txid || `0x${crypto.randomBytes(16).toString('hex')}`;
-  const record = {
-    paymentId,
-    planId: resolvedPlanId,
-    amountPi: authoritativePricePi,
-    txid,
-    status: 'completed' as const,
-    verifiedAtUtc: new Date().toISOString(),
-    readBackOk: true,
-  };
-  settledPayments.set(dedupeKey, record);
+  if (action === 'rewarded_ad_verify') {
+    return unavailable(
+      'Rewarded-ad verification is disabled until a trusted ad-provider callback can be verified server-side.'
+    );
+  }
 
-  return NextResponse.json({
-    completed: true,
-    idempotentReplay: false,
-    mode: 'testnet_sandbox',
-    record,
-  });
+  return NextResponse.json({ error: 'Unsupported action.' }, { status: 400 });
 }

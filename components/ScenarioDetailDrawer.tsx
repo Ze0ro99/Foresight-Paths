@@ -132,7 +132,7 @@ export default function ScenarioDetailDrawer({
                 ({dossier.coordinatesLabel})
               </span>
               <span className="text-[11px] text-[#CBD5E1]">
-                · Q-KEY: {qkCopy}
+                · Q-KEY: {qkCopy.label}
               </span>
             </div>
           </div>
