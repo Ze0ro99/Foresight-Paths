@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   const focusPhrase = (body.focusPhrase || 'PI NETWORK SWIFT').trim().slice(0, 80);
   const useGeminiDeep = Boolean(body.useGeminiDeep);
-  const signals = Array.isArray(body.activeSignals) ? body.activeSignals : [];
+  const signals: GlobalSensedSignal[] = body.activeSignals ?? [];
 
   const now = new Date();
   const minuteTick = now.getUTCMinutes();
