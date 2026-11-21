@@ -20,6 +20,8 @@ import {
 import { REGION_VIEWBOX_PRESETS } from '@/lib/world-monitor-engine';
 import { getRegionLabel } from '@/lib/i18n';
 
+const CLOUD_AGENT_ENABLED = false;
+
 interface CloudAgentViewProps {
   locale: AppLocale;
   activeSignals: GlobalSensedSignal[];
@@ -183,7 +185,7 @@ export default function CloudAgentView({
   const [history, setHistory] = useState<CloudAgentRunResult[]>([]);
 
   const executeCloudRun = async (useAiOverride?: boolean) => {
-    return;
+    if (!CLOUD_AGENT_ENABLED) return;
     setIsRunning(true);
     setErrorMsg(null);
     try {
@@ -217,7 +219,7 @@ export default function CloudAgentView({
   };
 
   useEffect(() => {
-    if (true || !autoHeartbeat) return;
+    if (!CLOUD_AGENT_ENABLED || !autoHeartbeat) return;
     const id = setInterval(() => {
       void executeCloudRun(false);
     }, 30000);
