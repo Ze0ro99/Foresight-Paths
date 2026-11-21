@@ -290,7 +290,7 @@ export default function AddEventModal({
               >
                 {THREATS.map((k) => (
                   <option key={k} value={k}>
-                    {getThreatCopy(k, locale).short}
+                    {getThreatCopy(k, locale).shortLabel}
                   </option>
                 ))}
               </select>
@@ -567,7 +567,7 @@ export default function AddEventModal({
               >
                 {QKEY_DOMAINS.map((domain) => (
                   <option key={domain.id} value={domain.id}>
-                    Q-{domain.index} — {getQKeyCopy(domain.id, locale)}
+                    Q-{domain.index} — {getQKeyCopy(domain.id, locale).label}
                   </option>
                 ))}
               </select>
