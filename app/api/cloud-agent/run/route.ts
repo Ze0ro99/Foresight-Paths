@@ -69,12 +69,15 @@ export async function POST(req: NextRequest) {
         : 'hermes_hunter';
 
   const region: RegionViewKey =
-    body.region === 'mena' ||
-    body.region === 'europe' ||
-    body.region === 'americas' ||
-    body.region === 'asia'
-      ? body.region
-      : 'global';
+    body.region === 'mena'
+      ? 'mena'
+      : body.region === 'europe'
+        ? 'europe'
+        : body.region === 'americas'
+          ? 'americas'
+          : body.region === 'asia'
+            ? 'asia'
+            : 'global';
 
   const focusPhrase = (body.focusPhrase || 'PI NETWORK SWIFT').trim().slice(0, 80);
   const useGeminiDeep = Boolean(body.useGeminiDeep);
