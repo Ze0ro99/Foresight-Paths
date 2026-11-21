@@ -17,24 +17,33 @@ import {
 } from '@/lib/i18n-data';
 import { AppLocale } from '@/lib/types';
 
+declare global {
+  interface Window {
+    Pi?: {
+      init: (options: { version: string; sandbox: boolean }) => void;
+      authenticate: (
+        scopes: string[],
+        onIncompletePaymentFound: (payment: unknown) => void
+      ) => Promise<{ accessToken: string; user: { uid?: string; username?: string } }>;
+    };
+  }
+}
+
 interface HealthPayload {
   protocol: string;
-  network: string;
-  facilitator: string;
-  health: {
-    status: string;
-    oracleSpreadPct: number;
-    piUsdMedian: number;
-    pirc206CircuitState: string;
-    idempotentCacheCount: number;
-  };
+  status: string;
+  paidExecution: string;
+  settlement: string;
+  tools?: Array<{ name: string; description: string }>;
+  note?: string;
 }
 
 interface GatewayStatusPayload {
   service: string;
-  pinetGuestExploration: string;
+  status: string;
   sandboxMode: boolean;
-  settledCount: number;
+  paymentEnabled: boolean;
+  paymentFlow: string;
 }
 
 interface ProtocolGatewayViewProps {
@@ -92,7 +101,7 @@ const PROTOCOL_UI: Record<
     probeLabel: 'معامل الاختبار (phrase → decode_gematria_audit)',
     btnList: '1. استكشاف tools/list (مجاني)',
     btn402: '2. طلب غير مدفوع (HTTP 402)',
-    btn200: '3. توقيع PAYMENT-SIGNATURE (200 OK)',
+    btn200: '3. تنفيذ مدفوع: معطّل حتى اكتمال التكامل',
     pirc206Heading: 'مراقبة الحالة التشغيلية والأوراكل (PiRC-206)',
     srvStatus: 'حالة الخادم: ',
     circuitBreaker: 'قاطع الدائرة: ',
@@ -107,9 +116,9 @@ const PROTOCOL_UI: Record<
     sdkDesc:
       'ينفذ استدعاءات حقيقية ضد /api/pi/verify مع التحقق من /v2/me، ودورة U2A الثلاثية بمفاتيح Idempotency، وإعلانات Pi.Ads، وحظر التلاعب بالأسعار من المتصفح (HTTP 403).',
     btnAuthMe: '1. تحقق الهوية (/api/pi/verify · auth_me)',
-    btnU2AFlow: '2. دورة U2A الكاملة (0.1 Pi موافقة → إتمام)',
-    btnAdsVerify: '3. مكافأة Pi.Ads (0.0001 Pi)',
-    btnTamper403: '4. اختبار حظر تلاعب السعر (HTTP 403)',
+    btnU2AFlow: '2. دورة الدفع معطّلة حتى إعداد سجل الطلبات',
+    btnAdsVerify: '3. مكافآت الإعلانات معطّلة',
+    btnTamper403: '4. اختبار العبث متاح ضمن اختبارات CI فقط',
     sdkRespHeading: 'مخرجات عقد التحقق الخادمي (/api/pi/verify)',
     sdkPlaceholder: '// اختر أحد اختبارات Pi SDK v2.0 أو حظر التلاعب لعرض استجابة الخادم...',
     pirc1Title: 'عداد المنفعة الحقيقية PiRC1 والامتثال لهاكاثون Pi Next',
@@ -171,9 +180,9 @@ const PROTOCOL_UI: Record<
     sdkDesc:
       'Calls live /api/pi/verify to test server /v2/me authentication, 3-step U2A approve→complete with Idempotency Keys, Pi.Ads verification, and HTTP 403 client price tamper rejection.',
     btnAuthMe: '1. Verify Auth (/api/pi/verify · auth_me)',
-    btnU2AFlow: '2. Full U2A Cycle (0.1 Pi Approve → Complete)',
-    btnAdsVerify: '3. Rewarded Pi.Ads Credit (0.0001 Pi)',
-    btnTamper403: '4. Price Tamper Guard Test (HTTP 403)',
+    btnU2AFlow: '2. Payment flow disabled until order ledger is configured',
+    btnAdsVerify: '3. Rewarded ads disabled',
+    btnTamper403: '4. Price-tamper test runs in CI only',
     sdkRespHeading: 'Server Contract Verification Output (/api/pi/verify)',
     sdkPlaceholder: '// Trigger an action above to inspect server-authoritative responses...',
     pirc1Title: 'PiRC1 Live Real-Utility Counters & Pi Next Compliance',
@@ -220,7 +229,7 @@ const PROTOCOL_UI: Record<
     probeLabel: 'Paramètre de test (phrase → decode_gematria_audit)',
     btnList: '1. Explorer tools/list (Gratuit)',
     btn402: '2. Appel non payé (HTTP 402)',
-    btn200: '3. Signature PAYMENT-SIGNATURE (200 OK)',
+    btn200: '3. Exécution payante désactivée',
     pirc206Heading: 'Santé Opérationnelle & Télémétrie Oracle (PiRC-206)',
     srvStatus: 'État Serveur : ',
     circuitBreaker: 'Disjoncteur : ',
@@ -235,9 +244,9 @@ const PROTOCOL_UI: Record<
     sdkDesc:
       'Appelle /api/pi/verify pour tester /v2/me, le cycle U2A en 3 étapes avec Idempotency-Key, Pi.Ads et le rejet HTTP 403 des prix falsifiés côté navigateur.',
     btnAuthMe: '1. Vérifier Auth (/api/pi/verify · auth_me)',
-    btnU2AFlow: '2. Cycle U2A Complet (0,1 Pi)',
-    btnAdsVerify: '3. Crédit Pi.Ads (0,0001 Pi)',
-    btnTamper403: '4. Test Rejet Prix Client (HTTP 403)',
+    btnU2AFlow: '2. Paiement désactivé jusqu’à configuration du registre',
+    btnAdsVerify: '3. Publicités récompensées désactivées',
+    btnTamper403: '4. Test anti-manipulation réservé à CI',
     sdkRespHeading: 'Réponse Serveur Autoritaire (/api/pi/verify)',
     sdkPlaceholder: '// Lancez une vérification ci-dessus pour inspecter la réponse...',
     pirc1Title: 'Compteurs d’Utilité Réelle PiRC1 & Conformité Pi Next',
@@ -300,7 +309,7 @@ const PROTOCOL_UI: Record<
       'Menguji /api/pi/verify langsung untuk validasi /v2/me, alur 3-langkah U2A dengan Idempotency-Key, Pi.Ads, dan penolakan HTTP 403 atas manipulasi harga browser.',
     btnAuthMe: '1. Verifikasi Auth (/api/pi/verify · auth_me)',
     btnU2AFlow: '2. Alur Lengkap U2A (0.1 Pi Setuju → Selesai)',
-    btnAdsVerify: '3. Kredit Iklan Pi.Ads (0.0001 Pi)',
+    btnAdsVerify: '3. Rewarded ads dinonaktifkan',
     btnTamper403: '4. Uji Tolak Manipulasi Harga (HTTP 403)',
     sdkRespHeading: 'Output Verifikasi Kontrak Server (/api/pi/verify)',
     sdkPlaceholder: '// Pilih aksi uji di atas untuk melihat respons otoritatif server...',
@@ -348,7 +357,7 @@ const PROTOCOL_UI: Record<
     probeLabel: 'Tham Số Kiểm Thử (phrase → decode_gematria_audit)',
     btnList: '1. Khám Phá tools/list (Miễn Phí)',
     btn402: '2. Truy Vấn Chưa Trả Phí (HTTP 402)',
-    btn200: '3. Ký PAYMENT-SIGNATURE (200 OK)',
+    btn200: '3. Thực thi trả phí đã tắt',
     pirc206Heading: 'Giám Sát Sức Khỏe Vận Hành & Oracle (PiRC-206)',
     srvStatus: 'Trạng Thái Máy Chủ: ',
     circuitBreaker: 'Cầu Dao Ngắt Mạch: ',
@@ -364,7 +373,7 @@ const PROTOCOL_UI: Record<
       'Gọi trực tiếp /api/pi/verify để kiểm tra xác thực /v2/me, quy trình U2A 3 bước kèm Idempotency-Key, Pi.Ads và chặn HTTP 403 khi trình duyệt sửa giá.',
     btnAuthMe: '1. Xác Thực /v2/me (/api/pi/verify)',
     btnU2AFlow: '2. Chu Trình U2A (0,1 Pi Duyệt → Hoàn Tất)',
-    btnAdsVerify: '3. Tín Dụng Quảng Cáo Pi.Ads (0,0001 Pi)',
+    btnAdsVerify: '3. Quảng cáo thưởng đã tắt',
     btnTamper403: '4. Thử Chặn Sửa Giá Trình Duyệt (HTTP 403)',
     sdkRespHeading: 'Kết Quả Kiểm Tra Máy Chủ (/api/pi/verify)',
     sdkPlaceholder: '// Nhấn một nút ở trên để xem phản hồi thực của máy chủ...',
@@ -476,24 +485,6 @@ export default function ProtocolGatewayView({
   const runMcpProbe = async (mode: 'list' | 'unpaid_402' | 'signed_200') => {
     setLoadingCall(true);
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (mode === 'signed_200') {
-        const paymentPayload = btoa(
-          JSON.stringify({
-            x402Version: 2,
-            scheme: 'batch-settlement',
-            network: 'pi:testnet',
-            payer: 'G_PI_PIONEER_KYC_VERIFIED_DEMO',
-            amountPi: '0.0001',
-            signature: 'ed25519_demo_voucher_verified',
-          })
-        );
-        headers['PAYMENT-SIGNATURE'] = paymentPayload;
-        headers['Idempotency-Key'] = `probe-${probePhrase.replace(/\s+/g, '-')}`;
-      }
-
       const body =
         mode === 'list'
           ? { jsonrpc: '2.0', id: 1, method: 'tools/list' }
@@ -507,20 +498,21 @@ export default function ProtocolGatewayView({
               },
             };
 
+      // The paid-execution probe deliberately sends no fabricated signature.
+      // The server must reject execution until a real facilitator is configured.
       const res = await fetch('/api/x402/mcp', {
         method: 'POST',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
       setLastHttpStatus(res.status);
-      const paymentReq = res.headers.get('PAYMENT-REQUIRED');
-      const paymentRes = res.headers.get('PAYMENT-RESPONSE');
-      setLastHeaderDecoded(decodeHeaderB64(paymentRes || paymentReq));
-
       const json = await res.json();
+      setLastHeaderDecoded('');
       setLastResponseJson(JSON.stringify(json, null, 2));
       void refreshGateways();
+    } catch {
+      setLastResponseJson(JSON.stringify({ status: 'network_error' }, null, 2));
     } finally {
       setLoadingCall(false);
     }
@@ -531,73 +523,94 @@ export default function ProtocolGatewayView({
   ) => {
     setLoadingSdkCall(true);
     try {
-      if (mode === 'auth_me') {
-        const res = await fetch('/api/pi/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'auth_me', pioneerHandle: 'Pioneer_RiskOps' }),
-        });
-        setSdkHttpStatus(res.status);
-        setSdkResponseJson(JSON.stringify(await res.json(), null, 2));
-      } else if (mode === 'u2a_cycle') {
-        const approveRes = await fetch('/api/pi/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'payment_approve',
-            planId: 'prepaid_0_1_credit',
-          }),
-        });
-        const approveData = await approveRes.json();
-        const paymentId = approveData.paymentId || `pay_${Date.now()}`;
-        const completeRes = await fetch('/api/pi/verify', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Idempotency-Key': `idem-${paymentId}`,
-          },
-          body: JSON.stringify({
-            action: 'payment_complete',
-            planId: 'prepaid_0_1_credit',
-            paymentId,
-          }),
-        });
-        const completeData = await completeRes.json();
-        setSdkHttpStatus(completeRes.status);
+      if (mode !== 'auth_me') {
+        setSdkHttpStatus(503);
         setSdkResponseJson(
           JSON.stringify(
-            { step1Approve: approveData, step2CompleteWithReadBack: completeData },
+            {
+              status: 'not_ready',
+              error:
+                'This action is intentionally unavailable. Paid features require a durable order ledger; rewarded ads require a trusted provider callback; price-tamper tests must use automated security tests.',
+            },
             null,
             2
           )
         );
-      } else if (mode === 'rewarded_ad') {
-        const res = await fetch('/api/pi/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'rewarded_ad_verify',
-            planId: 'rewarded_ad_renewal',
-            adId: `pi_ad_${Date.now()}`,
-          }),
-        });
-        setSdkHttpStatus(res.status);
-        setSdkResponseJson(JSON.stringify(await res.json(), null, 2));
-      } else {
-        // Tamper test: client claims 0.00001 Pi on 0.1 Pi prepaid bundle -> server rejects 403
-        const res = await fetch('/api/pi/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'payment_approve',
-            planId: 'prepaid_0_1_credit',
-            clientClaimedPrice: 0.00001,
-          }),
-        });
-        setSdkHttpStatus(res.status);
-        setSdkResponseJson(JSON.stringify(await res.json(), null, 2));
+        return;
       }
+
+      if (!window.Pi) {
+        setSdkHttpStatus(503);
+        setSdkResponseJson(
+          JSON.stringify(
+            {
+              status: 'pi_sdk_unavailable',
+              error: 'Open this app inside Pi Browser after the official Pi SDK has loaded.',
+            },
+            null,
+            2
+          )
+        );
+        return;
+      }
+
+      window.Pi.init({
+        version: '2.0',
+        sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false',
+      });
+      const auth = await window.Pi.authenticate(
+        ['username', 'payments'],
+        (payment) => {
+          setSdkResponseJson(
+            JSON.stringify(
+              {
+                status: 'incomplete_payment_found',
+                note: 'An interrupted Pi payment was detected. It must be recovered against its server payment record before any entitlement is granted.',
+                payment,
+              },
+              null,
+              2
+            )
+          );
+        }
+      );
+
+      const res = await fetch('/api/pi/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + auth.accessToken,
+        },
+        body: JSON.stringify({ action: 'auth_me' }),
+      });
+      const data = await res.json();
+      setSdkHttpStatus(res.status);
+      setSdkResponseJson(
+        JSON.stringify(
+          {
+            piSdkUser: {
+              username: auth.user?.username ?? null,
+              uid: auth.user?.uid ?? null,
+            },
+            serverVerification: data,
+          },
+          null,
+          2
+        )
+      );
       void refreshGateways();
+    } catch (error) {
+      setSdkHttpStatus(502);
+      setSdkResponseJson(
+        JSON.stringify(
+          {
+            status: 'pi_auth_failed',
+            error: error instanceof Error ? error.message : 'Pi authentication failed.',
+          },
+          null,
+          2
+        )
+      );
     } finally {
       setLoadingSdkCall(false);
     }
@@ -669,31 +682,18 @@ export default function ProtocolGatewayView({
                 <span>{ui.pirc206Heading}</span>
               </div>
               {health ? (
-                <div className="grid grid-cols-2 gap-2 text-[11px] tabular-nums">
-                  <div>
-                    <span className="text-[#A5B4FC]">{ui.srvStatus}</span>
-                    <span className="font-latin-math text-[#4ADE80]">
-                      {health.health.status}
-                    </span>
+                <div className="space-y-1 text-[11px] tabular-nums">
+                  <div className="text-white">{health.protocol}</div>
+                  <div className="text-[#A5B4FC]">
+                    Status: <span className="font-latin-math text-[#FBBF24]">{health.status}</span>
                   </div>
-                  <div>
-                    <span className="text-[#A5B4FC]">{ui.circuitBreaker}</span>
-                    <span className="font-latin-math text-white">
-                      {health.health.pirc206CircuitState}
-                    </span>
+                  <div className="text-[#A5B4FC]">
+                    Paid execution: <span className="font-latin-math text-white">{health.paidExecution}</span>
                   </div>
-                  <div>
-                    <span className="text-[#A5B4FC]">{ui.piMedian}</span>
-                    <span className="font-latin-math text-white">
-                      ${health.health.piUsdMedian}
-                    </span>
+                  <div className="text-[#A5B4FC]">
+                    Settlement: <span className="font-latin-math text-white">{health.settlement}</span>
                   </div>
-                  <div>
-                    <span className="text-[#A5B4FC]">{ui.oracleSpread}</span>
-                    <span className="font-latin-math text-[#C084FC]">
-                      {health.health.oracleSpreadPct}% ({ui.healthyWord})
-                    </span>
-                  </div>
+                  <div className="text-[#A5B4FC]">Discoverable tools: {health.tools?.length ?? 0}</div>
                 </div>
               ) : (
                 <div className="text-[11px] text-[#A5B4FC]">{ui.readingGateway}</div>
@@ -770,7 +770,7 @@ export default function ProtocolGatewayView({
               </button>
               <button
                 type="button"
-                disabled={loadingSdkCall}
+                disabled={true}
                 onClick={() => void runPiVerifyProbe('u2a_cycle')}
                 className="rounded border border-[#7C3AED] bg-[#2E1065] px-3 py-2 text-start font-semibold text-white hover:bg-[#4C1D95]"
               >
@@ -778,7 +778,7 @@ export default function ProtocolGatewayView({
               </button>
               <button
                 type="button"
-                disabled={loadingSdkCall}
+                disabled={true}
                 onClick={() => void runPiVerifyProbe('rewarded_ad')}
                 className="rounded border border-[#16A34A]/60 bg-[#052E16] px-3 py-2 text-start font-semibold text-[#4ADE80] hover:bg-[#16A34A]/20"
               >
@@ -786,7 +786,7 @@ export default function ProtocolGatewayView({
               </button>
               <button
                 type="button"
-                disabled={loadingSdkCall}
+                disabled={true}
                 onClick={() => void runPiVerifyProbe('tamper_403')}
                 className="rounded border border-[#E11D48] bg-[#2D0A18] px-3 py-2 text-start font-semibold text-[#FDA4AF] hover:bg-[#E11D48]/30"
               >
@@ -859,7 +859,7 @@ export default function ProtocolGatewayView({
           <div className="rounded border border-[#1E1B4B] bg-[#0C0D16] p-3.5">
             <div className="text-[#A5B4FC]">{ui.kpiSettled}</div>
             <div className="mt-1 font-latin-math text-xl font-bold text-[#FDA4AF]">
-              {(piGatewayInfo?.settledCount ?? 0) + (health?.health.idempotentCacheCount ?? 0)}
+              {piGatewayInfo?.paymentEnabled ? 'Configured' : 'Not configured'}
             </div>
           </div>
         </div>
