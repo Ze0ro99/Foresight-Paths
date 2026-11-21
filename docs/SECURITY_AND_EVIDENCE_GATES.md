@@ -1,45 +1,41 @@
 # Security and Evidence Gates
 
-Status: engineering audit; no production-readiness claim.
+Status: **fail-closed mitigations committed; production readiness not established**.
 
-This document records implementation blockers found during source review. It is not a substitute for runtime tests, an independent security audit, or official Pi platform documentation.
+This is an engineering status record, not an independent security audit, proof of runtime behavior, or substitute for current official Pi Platform documentation.
 
-## Cloud agent endpoint
+## Mitigations in this branch
 
-File: `app/api/cloud-agent/run/route.ts`
+- `app/api/cloud-agent/run/route.ts`: returns `503 not_ready` for every request. Cloud-agent execution, scoring, and settlement claims are disabled.
+- `app/api/pi/verify/route.ts`: never fabricates a verified sandbox identity, payment completion, transaction ID, or rewarded-ad grant. Pi identity is reported verified only after a successful live `/v2/me` response. Payment approval is attempted only with a configured server key and a real payment ID; completion and ad rewards remain disabled pending trusted verification.
+- `app/api/x402/mcp/route.ts`: exposes read-only tool discovery; paid tool execution returns `503` until a trusted facilitator, payment verification, replay protection, and settlement read-back are implemented.
+- `app/api/global-sense/route.ts`: rejects invalid/out-of-range coordinates, future timestamps beyond a small clock-skew allowance, and USGS records without a finite source magnitude. It continues to label coverage partial and does not invent severity for NASA EONET records.
 
-### Findings
+## Remaining release blockers
 
-1. The endpoint accepts `activeSignals` from the request body and uses them to calculate a composite risk score. A caller can therefore submit fabricated or malformed telemetry unless the server validates and independently sources it.
-2. The route computes `txHash` from local SHA-256 input and returns it under an `x402Settlement` object. This is not a chain transaction hash and does not demonstrate x402 verification, settlement, or payment.
-3. The response labels execution as `cloud_serverless_no_pc`, while the code only shows that this API handler ran. It does not establish a SoloHost execution or distributed agent run.
-4. The current risk formula combines event magnitude with a symbolic coupling score. No calibration, validation dataset, or uncertainty interval is established. It must not be presented as an operationally validated probability or threat score.
-5. Prompt content includes client-provided signals and symbolic correlations. Those values must be treated as untrusted input, not evidence.
-
-### Required remediation before any paid or operational use
-
-- Fetch eligible signals server-side from allowlisted source adapters; validate source, timestamp, coordinate ranges, schema, freshness, and duplicate IDs.
-- Keep symbolic decoding in a separate opt-in analysis layer. It must not change a factual event's severity, operational risk score, payment eligibility, or recommended emergency action.
-- Replace the synthetic settlement object with an explicit non-settled state until a real, server-verified payment provider integration is implemented. Never label a locally generated digest as a transaction hash.
-- Distinguish API execution from SoloHost execution in the response contract and UI.
-- Return a transparent, explainable heuristic only when inputs and formula are documented; otherwise return “not assessed.” Do not imply calibrated probability.
-- Add request limits, schema validation, authorization for privileged actions, idempotency, audit logging, and tests for malicious client payloads.
+1. Implement and test official Pi server-side payment completion verification, including read-back, idempotency, incomplete-payment recovery, and audit records. Do not enable entitlements before verification.
+2. Integrate a real rewarded-ad provider callback and verify its signature/server-side status before granting anything.
+3. Implement x402 only against a currently documented facilitator and supported Pi scheme; validate signatures, payer, recipient, amount, network, nonce/replay, settlement status, and read-back.
+4. Keep symbolic decoding opt-in and separate from observed evidence, operational severity, payment eligibility, and emergency actions.
+5. Add automated tests for malformed JSON, invalid coordinates, stale/future source records, duplicate IDs, source outages, client-payload tampering, fake payment payloads, replay attempts, and upstream API failures.
+6. Add request rate limits, abuse controls, privacy/retention policy, and a security review before enabling sensitive actions.
+7. Confirm Pi Network API versions, Testnet/Mainnet behavior, hackathon requirements, and SoloHost availability from current official sources before making product claims.
 
 ## Evidence and map presentation
 
-- A source record and its timestamp/coordinates are factual data only to the extent supported by that source.
-- Geographic proximity, gematria, π-based arithmetic, Q-Clock alignment, or visual adjacency are not evidence of causation, coordination, prediction, or threat severity.
-- Narrative-map items must remain explicitly attributed interpretations and be visually separable from observed events.
-- “Documented” must describe the cited claim, not automatically validate every inference attached to it.
-- Keep the original artifact, its source, capture date, transcription/translation notes, and analyst interpretation as separate fields.
+- A source record is factual only to the extent supported by its cited source and provenance.
+- Geographic proximity, gematria, π-based arithmetic, Q-Clock alignment, and visual adjacency do not establish causation, coordination, prediction, or threat severity.
+- Narrative-map items must remain explicitly attributed interpretations and visually separable from observed events.
+- Keep original artifacts, source URLs, capture dates, translation notes, and analyst interpretations as separate fields.
+- USGS/NASA EONET polling is partial on-request data retrieval, not continuous global ingestion or a durable scheduled pipeline.
 
 ## Release gates
 
-Do not mark the affected functionality production-ready until:
+Do not mark the app or affected functionality production-ready until:
 
-1. Server-side source validation and client-payload tampering tests pass.
-2. Payment state is backed by a verified provider response and read-back; no fabricated transaction identifiers remain.
-3. Symbolic fields cannot affect operational severity or trigger actions.
-4. UI labels distinguish observed, inferred, simulated, and settled states.
-5. Build, typecheck, unit tests, and integration tests pass in CI.
-6. A reviewer examines the security-sensitive changes and the release notes disclose remaining limitations.
+1. The production build, typecheck, lint, and automated tests pass.
+2. Runtime smoke tests confirm the homepage and read-only API behavior.
+3. Payment state is backed by a verified provider response and read-back; no locally generated digest is described as a transaction hash.
+4. Symbolic fields cannot affect operational severity or trigger actions.
+5. UI labels distinguish observed, inferred, simulated, unavailable, and settled states.
+6. A reviewer examines security-sensitive changes and release notes disclose remaining limitations.
