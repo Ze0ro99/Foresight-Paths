@@ -114,7 +114,7 @@ const PROTOCOL_UI: Record<
     headerDecodedHeading: 'ترويسة x402 المفككة (PAYMENT-REQUIRED / PAYMENT-RESPONSE)',
     sdkSectionTitle: 'مختبر التحقق الخادمي Pi SDK v2.0 وعقد الأمان (ECONOMIC_ENGINE_API_CONTRACT)',
     sdkDesc:
-      'ينفذ استدعاءات حقيقية ضد /api/pi/verify مع التحقق من /v2/me، ودورة U2A الثلاثية بمفاتيح Idempotency، وإعلانات Pi.Ads، وحظر التلاعب بالأسعار من المتصفح (HTTP 403).',
+      'يستخدم SDK الرسمي لمصادقة Pi ثم يتحقق الخادم من accessToken عبر /v2/me. المدفوعات والمكافآت لا تمنح أي استحقاق قبل إعداد سجل طلبات دائم والتحقق الكامل.',
     btnAuthMe: '1. تحقق الهوية (/api/pi/verify · auth_me)',
     btnU2AFlow: '2. دورة الدفع معطّلة حتى إعداد سجل الطلبات',
     btnAdsVerify: '3. مكافآت الإعلانات معطّلة',
@@ -140,12 +140,12 @@ const PROTOCOL_UI: Record<
       {
         step: '2. مصادقة وتحقق /me على الخادم',
         detail:
-          'عند طلب الاشتراك أو التصويت تُرسل ترويسة Bearer accessToken للخادم للتحقق من api.minepi.com/v2/me ومعالجة المدفوعات المعلقة.',
+          'تُرسل جلسة Pi إلى الخادم للتحقق من الهوية. لا تُفعّل الاشتراكات أو الحقوق المدفوعة قبل إنشاء سجل طلبات دائم.',
       },
       {
         step: '3. دورة الدفع الثلاثية U2A',
         detail:
-          'onReadyForServerApproval -> توقيع الرائد -> POST /payments/{id}/complete مع التحقق البعدي Read-back ومفاتيح Idempotency.',
+          'مسار الموافقة والإتمام الخادمي قيد الاختبار على Testnet؛ لا يُمنح رصيد أو اشتراك قبل سجل دائم واختبارات الاسترداد.',
       },
       {
         step: '4. البث والوصول الأصلي',
@@ -204,12 +204,12 @@ const PROTOCOL_UI: Record<
       {
         step: '2. Server /v2/me Validation',
         detail:
-          'Subscription upgrades and KYC voting send Bearer accessToken to /api/pi/verify so the server validates /v2/me and incomplete payments.',
+          'Pi sessions are verified server-side. Subscriptions and paid entitlements stay disabled until a durable order ledger is configured.',
       },
       {
-        step: '3. 3-Step U2A Settlement',
+        step: '3. Planned U2A flow (disabled)',
         detail:
-          'onReadyForServerApproval -> Pioneer signs -> payment_complete with Idempotency-Key & server read-back confirmation.',
+          'Server-side approval/completion is being validated on Testnet; no credit or subscription is granted without a durable ledger and recovery tests.',
       },
       {
         step: '4. Native Features & Digests',
@@ -268,12 +268,12 @@ const PROTOCOL_UI: Record<
       {
         step: '2. Validation Serveur /v2/me',
         detail:
-          'Les abonnements et votes KYC envoient Bearer accessToken au serveur pour validation Pi API.',
+          'Les sessions Pi sont vérifiées côté serveur. Les abonnements restent désactivés sans registre de commandes persistant.',
       },
       {
-        step: '3. Règlement U2A en 3 Étapes',
+        step: '3. Parcours U2A prévu (désactivé)',
         detail:
-          'Approbation serveur -> Signature Pionnier -> Complétion avec Idempotency-Key et relecture.',
+          'Le flux d’approbation et de finalisation est en validation Testnet ; aucun droit n’est accordé sans registre durable.',
       },
       {
         step: '4. Fonctions Natives & Preuves',
@@ -308,7 +308,7 @@ const PROTOCOL_UI: Record<
     sdkDesc:
       'Menggunakan SDK resmi Pi Browser dan memverifikasi token di server. Hak berbayar dan hadiah iklan tetap dinonaktifkan sampai penyimpanan permanen dan verifikasi tepercaya tersedia.',
     btnAuthMe: '1. Verifikasi Auth (/api/pi/verify · auth_me)',
-    btnU2AFlow: '2. Alur Lengkap U2A (0.1 Pi Setuju → Selesai)',
+    btnU2AFlow: '2. Pembayaran dinonaktifkan hingga ledger siap',
     btnAdsVerify: '3. Rewarded ads dinonaktifkan',
     btnTamper403: '4. Uji manipulasi harga hanya di CI',
     sdkRespHeading: 'Output Verifikasi Kontrak Server (/api/pi/verify)',
@@ -335,7 +335,7 @@ const PROTOCOL_UI: Record<
           'Permintaan langganan dan voting KYC mengirim Bearer accessToken ke server untuk verifikasi api.minepi.com/v2/me.',
       },
       {
-        step: '3. Siklus U2A 3-Langkah',
+        step: '3. Alur U2A direncanakan (dinonaktifkan)',
         detail:
           'Persetujuan server -> tanda tangan Pioneer -> penyelesaian dengan Idempotency-Key dan pemeriksaan read-back.',
       },
@@ -372,7 +372,7 @@ const PROTOCOL_UI: Record<
     sdkDesc:
       'Dùng SDK Pi Browser chính thức và xác minh token ở máy chủ. Quyền lợi trả phí và thưởng quảng cáo vẫn tắt cho đến khi có lưu trữ bền vững và xác minh đáng tin cậy.',
     btnAuthMe: '1. Xác Thực /v2/me (/api/pi/verify)',
-    btnU2AFlow: '2. Chu Trình U2A (0,1 Pi Duyệt → Hoàn Tất)',
+    btnU2AFlow: '2. Thanh toán tắt cho đến khi có sổ đơn hàng',
     btnAdsVerify: '3. Quảng cáo thưởng đã tắt',
     btnTamper403: '4. Kiểm tra giả mạo chỉ chạy trong CI',
     sdkRespHeading: 'Kết Quả Kiểm Tra Máy Chủ (/api/pi/verify)',
@@ -399,7 +399,7 @@ const PROTOCOL_UI: Record<
           'Nâng cấp gói hoặc bỏ phiếu KYC gửi Bearer accessToken tới máy chủ để kiểm chứng với api.minepi.com/v2/me.',
       },
       {
-        step: '3. Thanh Toán U2A 3 Bước',
+        step: '3. Quy trình U2A dự kiến (đã tắt)',
         detail:
           'Duyệt máy chủ -> Pioneer ký ví -> hoàn tất giao dịch kèm Idempotency-Key và đọc lại xác nhận.',
       },
