@@ -49,12 +49,21 @@ export async function GET() {
         if (
           typeof lat !== 'number' ||
           typeof lng !== 'number' ||
+          !Number.isFinite(lat) ||
+          !Number.isFinite(lng) ||
+          lat < -90 ||
+          lat > 90 ||
+          lng < -180 ||
+          lng > 180 ||
           typeof sourceTime !== 'number' ||
-          !Number.isFinite(sourceTime)
+          !Number.isFinite(sourceTime) ||
+          sourceTime > Date.now() + 5 * 60 * 1000 ||
+          typeof f.properties?.mag !== 'number' ||
+          !Number.isFinite(f.properties.mag)
         ) {
           continue;
         }
-        const mag = Number((f.properties?.mag ?? 4.5).toFixed(1));
+        const mag = Number(f.properties.mag.toFixed(1));
         const ts = new Date(sourceTime).toISOString();
         signals.push(
           enrichGlobalSignal({
@@ -98,8 +107,15 @@ export async function GET() {
           !Array.isArray(coords) ||
           typeof coords[0] !== 'number' ||
           typeof coords[1] !== 'number' ||
+          !Number.isFinite(coords[0]) ||
+          !Number.isFinite(coords[1]) ||
+          coords[0] < -180 ||
+          coords[0] > 180 ||
+          coords[1] < -90 ||
+          coords[1] > 90 ||
           typeof sourceTime !== 'string' ||
-          !Number.isFinite(Date.parse(sourceTime))
+          !Number.isFinite(Date.parse(sourceTime)) ||
+          Date.parse(sourceTime) > Date.now() + 5 * 60 * 1000
         ) {
           continue;
         }
