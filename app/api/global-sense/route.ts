@@ -44,11 +44,18 @@ export async function GET() {
       for (const f of features) {
         const lng = f.geometry?.coordinates?.[0];
         const lat = f.geometry?.coordinates?.[1];
-        if (typeof lat !== 'number' || typeof lng !== 'number') continue;
+        const sourceTime = f.properties?.time;
+        // Missing source timestamps must not be replaced with the current time.
+        if (
+          typeof lat !== 'number' ||
+          typeof lng !== 'number' ||
+          typeof sourceTime !== 'number' ||
+          !Number.isFinite(sourceTime)
+        ) {
+          continue;
+        }
         const mag = Number((f.properties?.mag ?? 4.5).toFixed(1));
-        const ts = f.properties?.time
-          ? new Date(f.properties.time).toISOString()
-          : new Date().toISOString();
+        const ts = new Date(sourceTime).toISOString();
         signals.push(
           enrichGlobalSignal({
             id: `usgs-${f.id}`,
@@ -86,10 +93,13 @@ export async function GET() {
       for (const ev of events) {
         const latestGeom = ev.geometry?.[ev.geometry.length - 1];
         const coords = latestGeom?.coordinates;
+        const sourceTime = latestGeom?.date;
         if (
           !Array.isArray(coords) ||
           typeof coords[0] !== 'number' ||
-          typeof coords[1] !== 'number'
+          typeof coords[1] !== 'number' ||
+          typeof sourceTime !== 'string' ||
+          !Number.isFinite(Date.parse(sourceTime))
         ) {
           continue;
         }
@@ -101,12 +111,14 @@ export async function GET() {
             source: 'NASA_EONET',
             category: 'natural_hazard',
             title: ev.title,
-            locationName: catTitle,
+            // EONET geometry is not necessarily a named city or exact incident location.
+            locationName: `${catTitle} event geometry`,
             lat,
             lng,
-            magnitudeOrSeverity: 6.0,
-            severityLabel: catTitle,
-            publishedAtIso: latestGeom?.date || new Date().toISOString(),
+            // EONET does not provide a comparable severity score here; do not invent one.
+            magnitudeOrSeverity: 0,
+            severityLabel: 'Unrated (NASA EONET)',
+            publishedAtIso: new Date(sourceTime).toISOString(),
             url: ev.link,
           })
         );
@@ -123,7 +135,7 @@ export async function GET() {
     fetchedAtUtc: new Date().toISOString(),
     coverage: 'partial',
     coverageNote:
-      'Only source-attributed USGS and NASA EONET events are included. This endpoint is not a comprehensive global news feed; unavailable sources are not replaced with synthetic alerts.',
+      'Only source-attributed USGS and NASA EONET events are included. This endpoint is not a comprehensive global news feed; unavailable sources are not replaced with synthetic alerts. Records without valid source timestamps are omitted.',
     sources: {
       usgsCount,
       eonetCount,
