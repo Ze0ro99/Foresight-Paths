@@ -47,6 +47,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Fail closed: this endpoint currently accepts client-supplied telemetry and emits
+  // synthetic settlement metadata. Keep it unavailable until server-side source
+  // validation, calibrated scoring, and real payment verification are implemented.
+  return NextResponse.json(
+    {
+      status: 'not_ready',
+      error:
+        'Cloud agent execution is disabled until telemetry is validated server-side and payment settlement is verified. No agent run or payment occurred.',
+    },
+    { status: 503 }
+  );
+
   const locale = parseLocale(body.locale);
 
   const agentMode: CloudAgentMode =
