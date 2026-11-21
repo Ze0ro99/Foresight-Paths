@@ -1,0 +1,43 @@
+import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
+
+export async function GET() {
+  const geminiConfigured = Boolean(
+    process.env.GEMINI_API_KEY &&
+    process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'
+  );
+  const piServerKeyConfigured = Boolean(
+    process.env.PI_API_KEY &&
+    process.env.PI_API_KEY !== 'MY_PI_PLATFORM_SERVER_API_KEY'
+  );
+  const piSandboxMode = process.env.PI_SANDBOX_MODE !== 'false';
+
+  const checks = {
+    application: 'ok',
+    globalSense: 'available_with_partial_source_coverage',
+    geminiAnalysis: geminiConfigured ? 'configured' : 'not_configured',
+    piIdentity: 'requires_pi_browser_session',
+    piPayments: piServerKeyConfigured
+      ? 'server_key_configured_no_entitlement_ledger'
+      : 'not_configured',
+    piSandboxMode,
+    x402: 'read_only_discovery_only',
+    cloudAgent: 'disabled_until_security_gates_pass',
+    rewardedAds: 'disabled_until_provider_verification',
+  };
+
+  const ready =
+    geminiConfigured &&
+    piServerKeyConfigured;
+
+  return NextResponse.json(
+    {
+      status: ready ? 'operational_with_restricted_features' : 'operational_setup_incomplete',
+      checkedAt: new Date().toISOString(),
+      checks,
+      note: 'This endpoint reports configuration only. It does not verify third-party credentials or guarantee upstream availability.',
+    },
+    { status: 200, headers: { 'Cache-Control': 'no-store' } }
+  );
+}
