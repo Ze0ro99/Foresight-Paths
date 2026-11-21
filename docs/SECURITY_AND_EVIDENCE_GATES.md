@@ -7,15 +7,15 @@ This is an engineering status record, not an independent security audit, proof o
 ## Mitigations in this branch
 
 - `app/api/cloud-agent/run/route.ts`: returns `503 not_ready` for every request. Cloud-agent execution, scoring, and settlement claims are disabled.
-- `app/api/pi/verify/route.ts`: never fabricates a verified sandbox identity, payment completion, transaction ID, or rewarded-ad grant. Pi identity is reported verified only after a successful live `/v2/me` response. Payment approval is attempted only with a configured server key and a real payment ID; completion and ad rewards remain disabled pending trusted verification.
+- `app/api/pi/verify/route.ts`: identity is verified against `/v2/me`; payment approval/completion require a bearer-authenticated owner, a server-priced plan, matching Pi payment owner and metadata, and a successful completion read-back. No product entitlement is granted because a durable order ledger is not configured. Rewarded-ad grants remain disabled pending a trusted provider callback.
 - `app/api/x402/mcp/route.ts`: exposes read-only tool discovery; paid tool execution returns `503` until a trusted facilitator, payment verification, replay protection, and settlement read-back are implemented.
 - `app/api/global-sense/route.ts`: rejects invalid/out-of-range coordinates, future timestamps beyond a small clock-skew allowance, and USGS records without a finite source magnitude. It continues to label coverage partial and does not invent severity for NASA EONET records.
 
 ## Remaining release blockers
 
-1. Implement and test official Pi server-side payment completion verification, including read-back, idempotency, incomplete-payment recovery, and audit records. Do not enable entitlements before verification.
+1. Complete an end-to-end Pi Testnet transaction against the current official API, then add a durable order ledger with unique payment IDs, idempotent entitlement delivery, incomplete-payment recovery, and audit records before enabling entitlements.
 2. Integrate a real rewarded-ad provider callback and verify its signature/server-side status before granting anything.
-3. Implement x402 only against a currently documented facilitator and supported Pi scheme; validate signatures, payer, recipient, amount, network, nonce/replay, settlement status, and read-back.
+3. Implement x402 only against a currently documented facilitator and supported scheme; validate signatures, payer, recipient, amount, network, nonce/replay, settlement status, and read-back. Current paid execution is disabled.
 4. Keep symbolic decoding opt-in and separate from observed evidence, operational severity, payment eligibility, and emergency actions.
 5. Add automated tests for malformed JSON, invalid coordinates, stale/future source records, duplicate IDs, source outages, client-payload tampering, fake payment payloads, replay attempts, and upstream API failures.
 6. Add request rate limits, abuse controls, privacy/retention policy, and a security review before enabling sensitive actions.
