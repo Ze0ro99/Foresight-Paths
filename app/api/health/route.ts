@@ -26,7 +26,7 @@ export async function GET() {
     application: 'ok',
     globalSense: 'available_with_partial_source_coverage',
     geminiAnalysis: geminiConfigured ? 'configured' : 'not_configured',
-    piIdentity: 'requires_pi_browser_session',
+    piIdentity: 'requires_pi_browser_session',\n    supabaseLedger: supabaseLedgerConfigured ? 'server_credentials_configured' : 'read_only_data_only_private_ledger_key_missing',
     piPayments: !piServerKeyConfigured
       ? 'not_configured'
       : piPaymentExecutionEnabled
