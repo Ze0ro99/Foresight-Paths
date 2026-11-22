@@ -80,4 +80,4 @@ Audience: Pi ecosystem reviewers, developers, and community users
 
 ## Current payment-demo limitation
 
-The current build includes a private Testnet-only payment-intent and double-entry ledger schema, but does not yet have a verified Pi payment handshake. The Preview project still needs the real `PI_API_KEY` and server-only `SUPABASE_SERVICE_ROLE_KEY` entered as encrypted Preview secrets. Until then, the video must present payment handling as gated/in preparation, not as a completed live payment.
+The current build includes a private Testnet-only payment-intent and double-entry ledger schema, service-only idempotent RPCs, and backend Pi approve/complete/read-back code. The live handshake has not yet been validated because the Preview project still needs the real Testnet `PI_API_KEY` and server-only `SUPABASE_SERVICE_ROLE_KEY` entered as encrypted Preview secrets. Until then, the video must present payment handling as gated/in preparation, not as a completed live payment.
