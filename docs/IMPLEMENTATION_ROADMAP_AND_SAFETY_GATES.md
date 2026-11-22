@@ -70,3 +70,33 @@ Status: **living engineering record**. A checked item requires code, tests, and 
 ## Current scope boundary
 
 This document is a delivery and safety record, not evidence that every row is already implemented. In this change set, the news panel and source-coverage presentation are the delivered work; CI and Preview are still being validated. Pi payment processing, automatic fee routing, x402, internal credits, marketplace billing, URL scanning, file sharing, agent execution, SoloHost packaging, governance, and Mainnet approval must remain disabled or clearly labeled as planned until code and test evidence exist. Mainnet activation requires a separate explicit instruction from the owner.
+
+
+## Verified Testnet infrastructure added in the current development slice
+
+The isolated Supabase project `foresight-paths-dev` (project ref `mlrbbnjoczpfmbgewgrm`) is separate from the PiRC Supabase project. It is on the organization's Free plan. The following schema is deployed there and versioned in `supabase/migrations/20261122194500_foresight_core_data_and_testnet_ledger.sql`:
+
+- Public, read-only datasets: `source_registry`, `news_items`, `hazard_events`, `risk_assessments`, `agent_templates`, and `scenario_snapshots`.
+- Private schema: `payment_intents`, `ledger_accounts`, `ledger_transactions`, and immutable `ledger_entries`. Private schema access is revoked from `anon` and `authenticated`; only the server `service_role` is granted access.
+- Public tables have RLS enabled and only SELECT policies for `anon` and `authenticated`. No client-side insert/update/delete policy exists.
+- Testnet-only constraints are applied to payment intent and ledger network fields; Mainnet is rejected by the schema. Ledger entries are append-only, and posting a ledger transaction is blocked unless debit and credit totals are equal.
+- Seeded source registry records identify GDELT, USGS, NASA EONET, and Pi Testnet Horizon. Agent cards are explicitly marked `demo` or `prototype`, not live automated agents.
+
+The Preview environment on branch `fix/ci-clean-base` has only the Supabase project URL and publishable key. No service-role key or Pi server key was added. The UI uses the public read-only endpoint `/api/intelligence/overview`; the Pi Testnet telemetry endpoint `/api/pi/testnet-fee` reads the latest Horizon ledger and reports the live `base_fee_in_stroops` value as a string and a Pi-denominated display value. It does not construct, sign, or submit transactions.
+
+### Payment activation remains gated
+
+The database structure is a foundation, not a completed payment integration. The application must not approve, complete, or deliver paid entitlements until all of the following are implemented and verified:
+
+1. Add `PI_API_KEY` as a Preview-only encrypted environment secret through Vercel; never commit or paste it into source.
+2. Add `SUPABASE_SERVICE_ROLE_KEY` as a Preview-only encrypted server secret; never prefix it with `NEXT_PUBLIC_`.
+3. Implement server-side Pi `/v2/me` verification, server-side payment retrieval, exact order/amount/user/network matching, idempotent approve/complete, and reconciliation for incomplete payments.
+4. Verify all flows using Pi Sandbox/Testnet and a real developer app configuration. Deliver no entitlement before successful server-side completion.
+5. Add a Testnet fee quote path for any Stellar SDK-built transaction; use the current ledger base fee in stroops, integer arithmetic, and a safe failure mode. The fee endpoint in this slice is telemetry only, not a transaction builder.
+6. Add refund, dispute, replay, callback retry, ledger balancing, and audit tests before enabling prepaid credits or x402 settlement.
+
+The public news feed is currently fetched from GDELT by the Next.js route. Supabase storage tables are ready for server-side ingestion, but live article/hazard ingestion into those tables is not yet wired because no server-only database credential is configured. The UI must not imply that empty persisted tables mean no real-world events.
+
+### Video demonstration boundary
+
+A Testnet walkthrough can currently demonstrate the global news feed, source attribution, partial coverage disclosures, hazard-source coverage, the isolated Supabase read-only data panel, and live Pi Testnet ledger/fee telemetry. Agent templates should be presented as prototypes. Do not demonstrate a payment as successful unless the full Pi Sandbox/Testnet approve → wallet transaction → complete flow has passed with the project's own credentials. Do not switch `Pi.init` to production or enable Mainnet.
