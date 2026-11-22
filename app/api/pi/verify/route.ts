@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PI_API_BASE = 'https://api.minepi.com/v2';
 const AUTHORITATIVE_PLAN_PRICES_PI: Record<string, string> = {
-  prepaid_0_1_credit: '0.1',
-  premium_risk_studio: '1',
+  testnet_payment_0_1_demo: '0.1',
+  testnet_payment_1_0_demo: '1',
 };
 
 type PiUser = { uid?: string; username?: string };
