@@ -1,3 +1,4 @@
+import { stroopsToPi } from '@/lib/pi-fee.mjs';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
@@ -5,14 +6,6 @@ export const dynamic = 'force-dynamic';
 type LedgerResponse = {
   _embedded?: { records?: Array<{ sequence?: string; base_fee_in_stroops?: string; closed_at?: string }> };
 };
-
-function stroopsToPi(value: string): string {
-  if (!/^\d+$/.test(value)) throw new Error('Invalid stroop value');
-  const amount = BigInt(value);
-  const whole = amount / 10_000_000n;
-  const fraction = (amount % 10_000_000n).toString().padStart(7, '0').replace(/0+$/, '');
-  return fraction ? `${whole}.${fraction}` : whole.toString();
-}
 
 export async function GET() {
   try {
