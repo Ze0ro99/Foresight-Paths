@@ -9,10 +9,14 @@ Add the following under **Project → Settings → Environment Variables**, for 
 | Variable | Required for | Notes |
 | --- | --- | --- |
 | `GEMINI_API_KEY` | Gemini event analysis | Server-only secret. |
-| `PI_API_KEY` | Pi server-side identity/payment operations | Testnet app key for Preview; server-only secret. |\n| `NEXT_PUBLIC_SUPABASE_URL` | Public read-only Foresight data | Must point to `foresight-paths-dev`, not the PiRC project. |\n| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public read-only Foresight data | Publishable key; RLS limits public access to SELECT. |\n| `SUPABASE_SERVICE_ROLE_KEY` | Private Testnet payment-intent RPCs | Server-only secret; never use a `NEXT_PUBLIC_` prefix. |
+| `PI_API_KEY` | Pi server-side identity/payment operations | Testnet app key for Preview; server-only secret. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Public read-only Foresight data | Must point to `foresight-paths-dev`, not the PiRC project. |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public read-only Foresight data | Publishable key; RLS limits public access to SELECT. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Private Testnet payment-intent RPCs | Server-only secret; never use a `NEXT_PUBLIC_` prefix. |
 | `PI_SANDBOX_MODE` | Pi server environment | `true` by default. |
 | `NEXT_PUBLIC_PI_SANDBOX_MODE` | Pi browser SDK environment | Must match `PI_SANDBOX_MODE`. |
-| `PI_PAYMENTS_ENABLED` | Pi Testnet approval/completion | `false` by default; Preview-only demo release gate. |\n| `PI_PAYMENT_INTENT_LEDGER_READY` | Private payment-intent persistence | `false` by default; set only when the isolated Supabase private RPCs are configured. |
+| `PI_PAYMENTS_ENABLED` | Pi Testnet approval/completion | `false` by default; Preview-only demo release gate. |
+| `PI_PAYMENT_INTENT_LEDGER_READY` | Private payment-intent persistence | `false` by default; set only when the isolated Supabase private RPCs are configured. |
 | `PI_ENTITLEMENT_LEDGER_ENABLED` | Paid credit/entitlement delivery | Must remain `false` until balances, refunds, and entitlement delivery are separately implemented and tested. |
 | `PI_MAINNET_PAYMENTS_APPROVED` | Mainnet payment release | `false` by default; requires the owner’s explicit approval after Testnet end-to-end validation. |
 
@@ -41,7 +45,8 @@ Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_S
 | Gemini analysis | Requires `GEMINI_API_KEY` |
 | Pi identity | Requires Pi Browser SDK session and server verification |
 | Pi payment approval/completion | Disabled by default; requires `PI_API_KEY`, a durable ledger, and explicit release flags |
-| Private Testnet payment-intent persistence | Implemented in Supabase; server credentials and Pi key still required for live flow |\n| Durable prepaid/premium entitlements | Not implemented; requires separate credit/entitlement and refund workflows |
+| Private Testnet payment-intent persistence | Implemented in Supabase; server credentials and Pi key still required for live flow |
+| Durable prepaid/premium entitlements | Not implemented; requires separate credit/entitlement and refund workflows |
 | x402 paid execution | Disabled; no trusted facilitator/settlement integration |
 | Rewarded-ad grants | Disabled; no verified provider callback |
 | Cloud-agent execution | Disabled pending telemetry validation, calibrated scoring, and independent settlement verification |
