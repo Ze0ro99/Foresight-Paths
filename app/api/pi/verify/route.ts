@@ -350,7 +350,7 @@ export async function POST(req: NextRequest) {
         readBack.data.status?.transaction_verified === true &&
         readBack.data.status?.developer_completed === true &&
         readBack.data.transaction?.txid === txid &&
-        readBack.data.transaction?.verified !== false;
+        readBack.data.transaction?.verified === true;
 
       if (!verified) {
         return unavailable(
