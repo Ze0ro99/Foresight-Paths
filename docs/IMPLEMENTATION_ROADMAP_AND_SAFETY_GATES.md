@@ -74,7 +74,7 @@ This document is a delivery and safety record, not evidence that every row is al
 
 ## Verified Testnet infrastructure added in the current development slice
 
-The isolated Supabase project `foresight-paths-dev` (project ref `mlrbbnjoczpfmbgewgrm`) is separate from the PiRC Supabase project. It is on the organization's Free plan. The following schema is deployed there and versioned in `supabase/migrations/20261122194500_foresight_core_data_and_testnet_ledger.sql`:
+The isolated Supabase project `foresight-paths-dev` (project ref `mlrbbnjoczpfmbgewgrm`) is separate from the PiRC Supabase project. It is on the organization's Free plan. The following schema is deployed there and versioned in `supabase/migrations/20261122195345_foresight_core_data_and_testnet_ledger.sql`, `20261122195413_secure_private_ledger_permissions_and_balance.sql`, and `20261122195539_service_role_private_ledger_policies_and_indexes.sql`:
 
 - Public, read-only datasets: `source_registry`, `news_items`, `hazard_events`, `risk_assessments`, `agent_templates`, and `scenario_snapshots`.
 - Private schema: `payment_intents`, `ledger_accounts`, `ledger_transactions`, and immutable `ledger_entries`. Private schema access is revoked from `anon` and `authenticated`; only the server `service_role` is granted access.
