@@ -9,7 +9,7 @@ type Article = {
   observedAt: string;
   sourceDomain: string;
 };
-type Payload = { fetchedAtUtc: string; articles: Article[]; note: string };
+type Payload = { fetchedAtUtc: string; articles: Article[]; note: string; persistence?: string };
 
 const categories = [
   'الكوارث والطوارئ',
@@ -97,7 +97,7 @@ export default function LiveNewsPanel({ locale }: { locale: string }) {
               timeZone: 'UTC',
               timeZoneName: 'short',
             })}{' '}
-            UTC · {ar ? 'تغطية جزئية' : 'Partial coverage'}
+            UTC · {ar ? 'تغطية جزئية' : 'Partial coverage'} · {ar ? 'الحفظ' : 'Storage'}: {data.persistence ?? '—'}
           </p>
           <div className="grid gap-4 md:grid-cols-2">
             {groups.map((group) => (
