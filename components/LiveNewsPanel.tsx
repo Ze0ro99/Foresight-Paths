@@ -9,7 +9,7 @@ type Article = {
   observedAt: string;
   sourceDomain: string;
 };
-type Payload = { fetchedAtUtc: string; articles: Article[]; note: string; persistence?: string };
+type Payload = { fetchedAtUtc: string; articles: Article[]; note: string; persistence?: string; sourceError?: string | null };
 
 const categories = [
   'الكوارث والطوارئ',
@@ -88,7 +88,7 @@ export default function LiveNewsPanel({ locale }: { locale: string }) {
         </button>
       </div>
 
-      {error && <p role="status" className="mb-2 text-xs text-amber-200">{error}</p>}
+      {error && <p role="status" className="mb-2 text-xs text-amber-200">{error}</p>}\n      {data?.sourceError && <p role="status" className="mb-2 text-xs text-amber-200">{ar ? 'حالة المصدر:' : 'Source status:'} {data.sourceError}</p>}
 
       {data && (
         <>
