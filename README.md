@@ -46,7 +46,7 @@ npm test
 npm run build
 ```
 
-Note: the package scripts currently do not define `test`; run the repository's configured test runner directly or add a test script before relying on `npm test`.
+The built-in Node test runner currently covers exact Pi stroop-to-Pi fee conversion; extend it with route and payment-state regression tests as those flows are enabled.
 
 ## Deployment
 
