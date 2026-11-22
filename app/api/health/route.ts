@@ -12,15 +12,32 @@ export async function GET() {
     process.env.PI_API_KEY !== 'MY_PI_PLATFORM_SERVER_API_KEY'
   );
   const piSandboxMode = process.env.PI_SANDBOX_MODE !== 'false';
+  const piPaymentExecutionFlag = process.env.PI_PAYMENTS_ENABLED === 'true';
+  const piLedgerReleaseFlag = process.env.PI_ENTITLEMENT_LEDGER_ENABLED === 'true';
+  const piMainnetReleaseFlag = process.env.PI_MAINNET_PAYMENTS_APPROVED === 'true';
+  const piPaymentReleaseFlagsEnabled =
+    piPaymentExecutionFlag &&
+    piLedgerReleaseFlag &&
+    (piSandboxMode || piMainnetReleaseFlag);
+  const piPaymentExecutionEnabled =
+    piServerKeyConfigured && piPaymentReleaseFlagsEnabled;
 
   const checks = {
     application: 'ok',
     globalSense: 'available_with_partial_source_coverage',
     geminiAnalysis: geminiConfigured ? 'configured' : 'not_configured',
     piIdentity: 'requires_pi_browser_session',
-    piPayments: piServerKeyConfigured
-      ? 'server_key_configured_no_entitlement_ledger'
-      : 'not_configured',
+    piPayments: !piServerKeyConfigured
+      ? 'not_configured'
+      : piPaymentExecutionEnabled
+        ? 'release_flags_enabled_runtime_verification_required'
+        : 'payments_disabled_pending_release_gates',
+    piPaymentExecutionEnabled,
+    piPaymentReleaseFlags: {
+      paymentExecution: piPaymentExecutionFlag,
+      entitlementLedger: piLedgerReleaseFlag,
+      mainnetApproval: piMainnetReleaseFlag,
+    },
     piSandboxMode,
     x402: 'read_only_discovery_only',
     cloudAgent: 'disabled_until_security_gates_pass',
