@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 20;
 type Category = 'disasters' | 'conflict' | 'politics' | 'economy' | 'health' | 'cyber' | 'science' | 'energy' | 'other';
 type Article = { title?: string; url?: string; seendate?: string; domain?: string; language?: string; sourcecountry?: string };
 type NewsItem = {
@@ -28,16 +29,7 @@ const labels: Record<Category, string> = {
   other: 'أخبار متنوعة',
 };
 
-const broadQuery = [
-  'earthquake OR flood OR wildfire OR hurricane OR volcano OR tsunami OR disaster',
-  'war OR conflict OR ceasefire OR missile OR invasion',
-  'election OR parliament OR government OR diplomacy OR sanctions',
-  'inflation OR central bank OR markets OR trade OR recession',
-  'outbreak OR epidemic OR pandemic OR public health',
-  'cyberattack OR ransomware OR data breach OR vulnerability OR outage',
-  'science OR space OR research OR technology OR artificial intelligence',
-  'oil OR gas OR electricity OR power grid OR renewable energy',
-].join(' OR ');
+const broadQuery = 'earthquake OR flood OR wildfire OR hurricane OR volcano OR tsunami OR disaster OR war OR conflict OR ceasefire OR election OR government OR diplomacy OR sanctions OR inflation OR markets OR trade OR recession OR outbreak OR epidemic OR pandemic OR cyberattack OR ransomware OR data breach OR science OR space OR technology OR artificial intelligence OR oil OR gas OR electricity OR renewable energy';
 
 function classifyArticle(title: string): Category {
   const value = title.toLowerCase();
@@ -120,7 +112,7 @@ export async function GET() {
   let sourceError: string | null = null;
   try {
     const response = await fetch('https://api.gdeltproject.org/api/v2/doc/doc?' + params, {
-      signal: AbortSignal.timeout(7000),
+      signal: AbortSignal.timeout(15000),
       next: { revalidate: 120 },
     });
     if (!response.ok) {
