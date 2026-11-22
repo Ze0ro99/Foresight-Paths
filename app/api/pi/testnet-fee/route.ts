@@ -11,7 +11,7 @@ export async function GET() {
   try {
     const response = await fetch(
       'https://api.testnet.minepi.com/ledgers?order=desc&limit=1',
-      { cache: 'no-store', signal: AbortSignal.timeout(7000) },
+      { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(9000) },
     );
     if (!response.ok) {
       return NextResponse.json(
@@ -41,9 +41,11 @@ export async function GET() {
       },
       { headers: { 'Cache-Control': 'no-store' } },
     );
-  } catch {
+  } catch (error) {
+    const errorCode = error instanceof Error ? error.name : 'UnknownError';
+    console.warn('Pi Testnet Horizon fee request failed', { errorCode });
     return NextResponse.json(
-      { network: 'Pi Testnet', status: 'unavailable', reason: 'Testnet Horizon could not be reached.' },
+      { network: 'Pi Testnet', status: 'unavailable', errorCode, reason: 'Testnet Horizon could not be reached.' },
       { status: 502, headers: { 'Cache-Control': 'no-store' } },
     );
   }
