@@ -88,7 +88,8 @@ export default function LiveNewsPanel({ locale }: { locale: string }) {
         </button>
       </div>
 
-      {error && <p role="status" className="mb-2 text-xs text-amber-200">{error}</p>}\n      {data?.sourceError && <p role="status" className="mb-2 text-xs text-amber-200">{ar ? 'حالة المصدر:' : 'Source status:'} {data.sourceError}</p>}
+      {error && <p role="status" className="mb-2 text-xs text-amber-200">{error}</p>}
+      {data?.sourceError && <p role="status" className="mb-2 text-xs text-amber-200">{ar ? 'حالة المصدر:' : 'Source status:'} {data.sourceError}</p>}
 
       {data && (
         <>
