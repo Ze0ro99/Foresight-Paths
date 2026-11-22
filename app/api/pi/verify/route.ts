@@ -159,7 +159,7 @@ function isPaymentReleaseEnabled() {
   return (
     sandboxMode &&
     process.env.PI_PAYMENTS_ENABLED === 'true' &&
-    process.env.PI_ENTITLEMENT_LEDGER_ENABLED === 'true' &&
+    process.env.PI_PAYMENT_INTENT_LEDGER_READY === 'true' &&
     hasDurableLedger()
   );
 }
@@ -183,9 +183,11 @@ export async function GET() {
           : 'payments_disabled_pending_release_gates',
     sandboxMode,
     ledgerConfigured,
+    paymentIntentLedgerReady: process.env.PI_PAYMENT_INTENT_LEDGER_READY === 'true',
+    entitlementDeliveryEnabled: false,
     paymentFlow: paymentEnabled
-      ? 'server_verified_approval_and_completion_with_durable_intent'
-      : 'disabled_until_testnet_release_gates_pass',
+      ? 'testnet_server_verified_approval_and_completion_with_durable_intent_only'
+      : 'disabled_until_testnet_credentials_and_release_gates_pass',
     paymentEnabled,
     plans: AUTHORITATIVE_PLAN_PRICES_PI,
     note: 'Only Testnet/Sandbox is accepted by this gateway. A successful settlement is persisted, but no paid entitlement is granted by this route.',
