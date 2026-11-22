@@ -39,6 +39,7 @@ import FullScreenMapCanvas from './FullScreenMapCanvas';
 import ScenarioDetailDrawer from './ScenarioDetailDrawer';
 import BackendMechanicsModal, { BackendTab } from './BackendMechanicsModal';
 import AddEventModal from './AddEventModal';
+import LiveNewsPanel from './LiveNewsPanel';
 
 export default function ResearchWorkspace() {
   const [events, setEvents] = useState<LiveEvent[]>(() =>
@@ -611,6 +612,8 @@ export default function ResearchWorkspace() {
           <p className="mt-1 leading-relaxed">{senseCoverageNote}</p>
         </section>
       )}
+
+      <LiveNewsPanel locale={locale} />
 
       {apiError && (
         <div
