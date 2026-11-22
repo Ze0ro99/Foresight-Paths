@@ -9,7 +9,8 @@ Audience: Pi ecosystem reviewers, developers, and community users
 - Open the current Vercel Preview in Pi Browser, not the production domain.
 - Confirm the page shows the Preview build and that the Pi SDK is initialized with `sandbox: true` only if a Pi SDK flow is included.
 - Confirm the global news feed loads and that source attribution and partial-coverage notes are visible.
-- Confirm the Pi Testnet status card shows a live ledger sequence and a current base-fee reading. If Horizon is unavailable, show the unavailable state honestly; do not replace it with a fabricated value.\n- Pi Sandbox authentication can be demonstrated after the SDK initializes. The payment buttons appear only after the Testnet server key and private Supabase key are configured; never fake the approval/completion state.
+- Confirm the Pi Testnet status card shows a live ledger sequence and a current base-fee reading. If Horizon is unavailable, show the unavailable state honestly; do not replace it with a fabricated value.
+- Pi Sandbox authentication can be demonstrated after the SDK initializes. The payment buttons appear only after the Testnet server key and private Supabase key are configured; never fake the approval/completion state.
 - Confirm the Supabase project indicator says `foresight-paths-dev` and that source/agent-template counts load.
 - Keep wallet secrets, server keys, environment settings, and private database records off-screen.
 - Do not attempt a payment during this recording unless the complete Pi Sandbox/Testnet payment flow has been configured and independently tested.
