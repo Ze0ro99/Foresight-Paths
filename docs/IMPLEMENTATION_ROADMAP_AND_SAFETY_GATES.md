@@ -82,7 +82,7 @@ The isolated Supabase project `foresight-paths-dev` (project ref `mlrbbnjoczpfmb
 - Testnet-only constraints are applied to payment intent and ledger network fields; Mainnet is rejected by the schema. Ledger entries are append-only; posting is blocked unless debit and credit totals are equal, and later inserts into an already-posted transaction are checked again for balance.
 - Seeded source registry records identify GDELT, USGS, NASA EONET, and Pi Testnet Horizon. Agent cards are explicitly marked `demo` or `prototype`, not live automated agents.
 
-The Preview environment on branch `fix/ci-clean-base` has only the Supabase project URL and publishable key. No service-role key or Pi server key was added. The UI uses the public read-only endpoint `/api/intelligence/overview`; the Pi Testnet telemetry endpoint `/api/pi/testnet-fee` reads the latest Horizon ledger and reports the live `base_fee_in_stroops` value as a string and a Pi-denominated display value. It does not construct, sign, or submit transactions.
+The Preview environment on branch `fix/ci-clean-base` has the Supabase project URL and publishable key plus explicit Testnet-only flags (`PI_SANDBOX_MODE=true`, payment-intent ledger ready, Mainnet approval false, paid-entitlement delivery false). The real `PI_API_KEY` and server-only `SUPABASE_SERVICE_ROLE_KEY` are still absent, so the payment UI remains disabled until those two secrets are entered. The UI uses the public read-only endpoint `/api/intelligence/overview`; the Pi Testnet telemetry endpoint `/api/pi/testnet-fee` reads the latest Horizon ledger and reports the live `base_fee_in_stroops` value as a string and a Pi-denominated display value. It does not construct, sign, or submit transactions.
 
 ### Payment activation remains gated
 
