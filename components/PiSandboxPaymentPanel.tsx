@@ -8,13 +8,8 @@ type PiPaymentDto = {
   transaction?: { txid?: string } | null;
   status?: { developer_completed?: boolean; transaction_verified?: boolean };
 };
-type PiAuth = { accessToken: string; user: { uid: string; username?: string } };
-type PiSdk = {
-  init: (config: { version: string; sandbox: boolean }) => Promise<void> | void;
-  authenticate: (
-    scopes: string[],
-    onIncompletePaymentFound: (payment: PiPaymentDto) => void,
-  ) => Promise<PiAuth>;
+type PiAuth = { accessToken: string; user: { uid?: string; username?: string } };
+type PiSdk = NonNullable<Window['Pi']> & {
   createPayment: (
     data: { amount: number; memo: string; metadata: Record<string, unknown> },
     callbacks: {
@@ -25,12 +20,6 @@ type PiSdk = {
     },
   ) => void;
 };
-
-declare global {
-  interface Window {
-    Pi?: PiSdk;
-  }
-}
 
 type GatewayStatus = { paymentEnabled?: boolean; status?: string; sandboxMode?: boolean };
 
@@ -123,8 +112,8 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
     setBusy(true);
     setMessage('');
     try {
-      const auth = await window.Pi.authenticate(['username', 'payments'], (payment) => {
-        setIncomplete(payment);
+      const auth = await window.Pi.authenticate(['username', 'payments'], (payment: unknown) => {
+        setIncomplete(payment as PiPaymentDto);
       });
       const response = await fetch('/api/pi/verify', {
         method: 'POST',
@@ -134,7 +123,7 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
       const result = await response.json();
       if (!response.ok || !result.verified) throw new Error(result.error || 'Pi identity verification failed.');
       setAccessToken(auth.accessToken);
-      setUsername(result.user?.username || auth.user.username || result.user?.uid || '');
+      setUsername(result.user?.username || auth.user.username || result.user?.uid || auth.user.uid || '');
       setMessage(ar ? 'تم التحقق من هوية Pi عبر الخادم.' : 'Pi identity was verified by the backend.');
       await refreshGateway();
     } catch (error) {
@@ -145,15 +134,16 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
   };
 
   const startPayment = (planId: 'testnet_payment_0_1_demo' | 'testnet_payment_1_0_demo') => {
-    if (!window.Pi || !accessToken || !paymentEnabled) return;
+    const pi = window.Pi as PiSdk | undefined;
+    if (!pi || !accessToken || !paymentEnabled) return;
     const amount = planId === 'testnet_payment_0_1_demo' ? 0.1 : 1;
-    const memo = planId === 'prepaid_0_1_credit'
+    const memo = planId === 'testnet_payment_0_1_demo'
       ? 'Foresight Paths Testnet payment demo — no entitlement'
       : 'Foresight Paths Testnet payment demo — no entitlement';
     setBusy(true);
     setMessage(ar ? 'تم فتح تدفق دفع Testnet. أكمل التوقيع في محفظة Pi.' : 'Testnet payment flow opened. Confirm it in Pi Wallet.');
     try {
-      window.Pi.createPayment(
+      pi.createPayment(
         { amount, memo, metadata: { planId, app: 'foresight-paths', network: 'Pi Testnet' } },
         {
           onReadyForServerApproval: async (paymentId) => {
