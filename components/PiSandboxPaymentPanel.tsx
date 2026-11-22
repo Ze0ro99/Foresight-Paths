@@ -92,10 +92,10 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
     const planId = typeof incomplete.metadata?.planId === 'string' ? incomplete.metadata.planId : '';
     const txid = incomplete.transaction?.txid;
     if (!incomplete.identifier || !planId || !txid) {
-      setMessage(ar
+      const warning = window.setTimeout(() => setMessage(ar
         ? 'توجد دفعة غير مكتملة؛ لا تتوفر بيانات كافية لإكمالها بأمان. لا تبدأ دفعة جديدة.'
-        : 'An incomplete payment was found without enough verified metadata to recover safely. Do not start another payment.');
-      return;
+        : 'An incomplete payment was found without enough verified metadata to recover safely. Do not start another payment.'), 0);
+      return () => window.clearTimeout(warning);
     }
     let active = true;
     void fetch('/api/pi/verify', {
@@ -144,12 +144,12 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
     }
   };
 
-  const startPayment = (planId: 'prepaid_0_1_credit' | 'premium_risk_studio') => {
+  const startPayment = (planId: 'testnet_payment_0_1_demo' | 'testnet_payment_1_0_demo') => {
     if (!window.Pi || !accessToken || !paymentEnabled) return;
-    const amount = planId === 'prepaid_0_1_credit' ? 0.1 : 1;
+    const amount = planId === 'testnet_payment_0_1_demo' ? 0.1 : 1;
     const memo = planId === 'prepaid_0_1_credit'
-      ? 'Foresight Paths Testnet top-up validation'
-      : 'Foresight Paths Testnet premium studio validation';
+      ? 'Foresight Paths Testnet payment demo — no entitlement'
+      : 'Foresight Paths Testnet payment demo — no entitlement';
     setBusy(true);
     setMessage(ar ? 'تم فتح تدفق دفع Testnet. أكمل التوقيع في محفظة Pi.' : 'Testnet payment flow opened. Confirm it in Pi Wallet.');
     try {
@@ -223,10 +223,10 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
       </div>
       {accessToken && paymentEnabled && (
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" disabled={busy} onClick={() => startPayment('prepaid_0_1_credit')} className="rounded border border-emerald-300/20 px-3 py-2 text-[11px] text-emerald-100 disabled:opacity-40">
+          <button type="button" disabled={busy} onClick={() => startPayment('testnet_payment_0_1_demo')} className="rounded border border-emerald-300/20 px-3 py-2 text-[11px] text-emerald-100 disabled:opacity-40">
             {ar ? 'اختبار 0.1 Test-Pi' : 'Test 0.1 Test-Pi'}
           </button>
-          <button type="button" disabled={busy} onClick={() => startPayment('premium_risk_studio')} className="rounded border border-emerald-300/20 px-3 py-2 text-[11px] text-emerald-100 disabled:opacity-40">
+          <button type="button" disabled={busy} onClick={() => startPayment('testnet_payment_1_0_demo')} className="rounded border border-emerald-300/20 px-3 py-2 text-[11px] text-emerald-100 disabled:opacity-40">
             {ar ? 'اختبار 1 Test-Pi' : 'Test 1 Test-Pi'}
           </button>
         </div>
