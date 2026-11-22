@@ -74,7 +74,7 @@ This document is a delivery and safety record, not evidence that every row is al
 
 ## Verified Testnet infrastructure added in the current development slice
 
-The isolated Supabase project `foresight-paths-dev` (project ref `mlrbbnjoczpfmbgewgrm`) is separate from the PiRC Supabase project. It is on the organization's Free plan. The following schema is deployed there and versioned in `supabase/migrations/20261122195345_foresight_core_data_and_testnet_ledger.sql`, `20261122195413_secure_private_ledger_permissions_and_balance.sql`, `20261122195539_service_role_private_ledger_policies_and_indexes.sql`, and `20261122195737_pi_testnet_payment_intent_rpcs.sql`:
+The isolated Supabase project `foresight-paths-dev` (project ref `mlrbbnjoczpfmbgewgrm`) is separate from the PiRC Supabase project. It is on the organization's Free plan. The following schema is deployed there and versioned in `supabase/migrations/20261122195345_foresight_core_data_and_testnet_ledger.sql`, `20261122195413_secure_private_ledger_permissions_and_balance.sql`, `20261122195539_service_role_private_ledger_policies_and_indexes.sql`, `20261122195737_pi_testnet_payment_intent_rpcs.sql`, and `20261122200225_source_refresh_and_batch_ingestion_rpcs.sql`:
 
 - Public, read-only datasets: `source_registry`, `news_items`, `hazard_events`, `risk_assessments`, `agent_templates`, and `scenario_snapshots`.
 - Private schema: `payment_intents`, `ledger_accounts`, `ledger_transactions`, and immutable `ledger_entries`. Private schema access is revoked from `anon` and `authenticated`; only the server `service_role` is granted access.
@@ -95,7 +95,7 @@ The database structure, service-only idempotent payment RPCs, and backend approv
 5. Add a Testnet fee quote path for any Stellar SDK-built transaction; use the current ledger base fee in stroops, integer arithmetic, and a safe failure mode. The fee endpoint in this slice is telemetry only, not a transaction builder.
 6. Add refund, dispute, replay, callback retry, ledger balancing, and audit tests before enabling prepaid credits or x402 settlement.
 
-The public news feed is currently fetched from GDELT by the Next.js route. Supabase storage tables are ready for server-side ingestion, but live article/hazard ingestion into those tables is not yet wired because no server-only database credential is configured. The UI must not imply that empty persisted tables mean no real-world events.
+The public news feed is fetched from GDELT and the hazard route reads USGS/NASA EONET. Both routes now have service-role-only batch-ingestion RPCs with a per-source refresh lease and upsert deduplication. Persistence is automatically skipped until the server-only `SUPABASE_SERVICE_ROLE_KEY` is configured in Preview; the browser never receives that key. The UI must not imply that empty persisted tables mean no real-world events.
 
 ### Video demonstration boundary
 
