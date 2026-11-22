@@ -17,11 +17,12 @@ export async function GET() {
   );
   const piSandboxMode = process.env.PI_SANDBOX_MODE !== 'false';
   const piPaymentExecutionFlag = process.env.PI_PAYMENTS_ENABLED === 'true';
-  const piLedgerReleaseFlag = process.env.PI_ENTITLEMENT_LEDGER_ENABLED === 'true';
+  const piIntentLedgerReady = process.env.PI_PAYMENT_INTENT_LEDGER_READY === 'true';
+  const piEntitlementLedgerEnabled = process.env.PI_ENTITLEMENT_LEDGER_ENABLED === 'true';
   const piMainnetReleaseFlag = process.env.PI_MAINNET_PAYMENTS_APPROVED === 'true';
   const piPaymentReleaseFlagsEnabled =
     piPaymentExecutionFlag &&
-    piLedgerReleaseFlag &&
+    piIntentLedgerReady &&
     piSandboxMode;
   const piPaymentExecutionEnabled =
     piServerKeyConfigured && supabaseLedgerConfigured && piPaymentReleaseFlagsEnabled;
@@ -31,6 +32,8 @@ export async function GET() {
     globalSense: 'available_with_partial_source_coverage',
     geminiAnalysis: geminiConfigured ? 'configured' : 'not_configured',
     piIdentity: 'requires_pi_browser_session',
+    paymentIntentLedger: piIntentLedgerReady ? 'ready_flag_set' : 'disabled',
+    paidEntitlements: piEntitlementLedgerEnabled ? 'enabled_flag_set_but_not_implemented' : 'disabled',
     supabaseLedger: supabaseLedgerConfigured
       ? 'server_credentials_configured'
       : 'read_only_data_only_private_ledger_key_missing',
@@ -44,7 +47,8 @@ export async function GET() {
     piPaymentExecutionEnabled,
     piPaymentReleaseFlags: {
       paymentExecution: piPaymentExecutionFlag,
-      entitlementLedger: piLedgerReleaseFlag,
+      paymentIntentLedgerReady: piIntentLedgerReady,
+      entitlementDelivery: piEntitlementLedgerEnabled,
       mainnetApproval: piMainnetReleaseFlag,
     },
     piSandboxMode,
