@@ -49,7 +49,6 @@ Production deployment is managed separately. See [Production Setup](docs/PRODUCT
 ## Engineering plan and readiness
 
 - [Implementation Roadmap and Safety Gates](docs/IMPLEMENTATION_ROADMAP_AND_SAFETY_GATES.md)
-- [PiOS Submission Readiness](docs/PIOS_SUBMISSION_READINESS.md)
 - [PiOS Readiness and Listing Checklist](docs/PIOS_READINESS_AND_LISTING_CHECKLIST.md)
 - [Security and Evidence Gates](docs/SECURITY_AND_EVIDENCE_GATES.md)
 
