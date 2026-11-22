@@ -254,3 +254,10 @@ values
 ('news-source-verifier','News Source Verifier','Compares publisher attribution, timestamps, and corroborating public reports.','news_verification','prototype',false,false,'Does not determine truth from a single source; human review required.'),
 ('pi-testnet-observer','Pi Testnet Observer','Reads public Testnet Horizon telemetry and reports ledger/network status.','infrastructure','demo',false,false,'Read-only observer; no wallet signing, transfers, or Mainnet operations.')
 on conflict (template_key) do nothing;
+
+-- Service-role-only policies for the private ledger. The schema itself is not exposed to public API roles.
+create policy "service role manages payment intents" on private.payment_intents for all to service_role using (true) with check (true);
+create policy "service role manages ledger accounts" on private.ledger_accounts for all to service_role using (true) with check (true);
+create policy "service role manages ledger transactions" on private.ledger_transactions for all to service_role using (true) with check (true);
+create policy "service role manages ledger entries" on private.ledger_entries for all to service_role using (true) with check (true);
+create index ledger_transactions_payment_intent_idx on private.ledger_transactions (payment_intent_id);
