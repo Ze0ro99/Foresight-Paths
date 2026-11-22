@@ -119,7 +119,7 @@ export default function LiveNewsPanel({ locale }: { locale: string }) {
                       <div className="mt-0.5 flex gap-2 text-[10px] text-white/40">
                         <span>{article.sourceDomain}</span>
                         <time dateTime={article.observedAt}>
-                          {new Date(article.publishedAt).toLocaleString(ar ? 'ar' : 'en', {
+                          {new Date(article.observedAt).toLocaleString(ar ? 'ar' : 'en', {
                             timeZone: 'UTC',
                             hour: '2-digit',
                             minute: '2-digit',
