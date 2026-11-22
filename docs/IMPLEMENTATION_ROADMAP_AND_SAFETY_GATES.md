@@ -1,65 +1,72 @@
-# Implementation Roadmap and Safety Gates
+# Implementation Roadmap and Verified Delivery Matrix
 
-Status: **engineering plan — not a claim that the listed integrations are implemented or approved**.
-
-This roadmap keeps the application useful while payment, Pi platform, data, and external-agent integrations are verified. Re-check official platform documentation and the current repository before implementation.
+Status: **living engineering record**. A checked item requires code, tests, and evidence on the current branch; a proposal or document alone is not implementation.
 
 ## Release principles
 
-- Keep payment, paid-agent, x402, and entitlement features disabled until their complete server-side flow is tested.
+- Keep Mainnet payment, A2U payouts, paid-agent execution, x402 settlement, and production secrets disabled until explicitly approved by the owner and verified end-to-end.
 - Treat browser input, scanned URLs, external API responses, agent output, and imported files as untrusted.
 - Never expose API keys, service-role keys, wallet secrets, or signing material to the client or repository.
-- Prefer small, reviewable changes on feature branches; do not deploy automatically from documentation or scaffolding work.
-- Label mock, estimated, and unverified information in the UI. Do not present a model output as a verified fact.
+- Use small, reviewable changes on feature branches. Merge only after required CI and Preview checks pass.
+- Label sourced facts, inference, estimates, and speculation separately. Never present model output as verified fact.
 
-## Workstreams
+## Delivery matrix
 
-### 1. App structure and reliability
-- Inventory current routes, server actions, environment variables, and provider integrations before changing architecture.
-- Keep privileged operations server-side; validate and normalize inputs at the boundary.
-- Add request IDs, structured error handling, bounded timeouts, and safe retry behavior.
-- Add tests for authentication boundaries, malformed inputs, provider failures, and disabled-feature behavior.
+| Workstream | Current evidence | Required before marking complete |
+|---|---|---|
+| Global news | GDELT DOC 2.0 route and eight-category panel exist on the review branch; refresh interval is two minutes; original publisher links and partial-coverage notice are displayed. | Add independent source adapters, provider health tests, category-level fixtures, deduplication tests, and monitored rate-limit/failure behavior. GDELT is not exhaustive or guaranteed instant. |
+| Hazard signals | Existing USGS/NASA signal integration and source-count/coverage UI are present. | Verify each adapter, timestamp semantics, geo coordinates, stale-data handling, and attribution; do not claim all disasters are covered. |
+| Evidence and Q-Clock | Existing narrative/time-map UI requires a source/evidence audit. | Separate symbolic projections from empirical analysis; publish reproducible formulas, test cases, confidence basis, alternative explanations, and uncertainty. |
+| Pi authentication and payments | No verified end-to-end payment implementation is evidenced by this PR. | Implement SDK initialization, authentication verification, payment approval/completion, incomplete-payment recovery, idempotency, ownership checks, durable order state, and Testnet tests. |
+| Automatic transaction-fee handling | Not implemented or validated by this PR. | For Stellar SDK-built transactions, read the latest ledger's `base_fee_in_stroops` from the selected Pi Horizon network and pass the returned fee to TransactionBuilder. Recheck the ledger value per transaction/batch and handle RPC failure safely. |
+| Micro-payments / x402 | Not implemented or validated by this PR. | Do not assume an on-chain minimum of 0.01 Pi or promise that Pi.createPayment supports a custom fee. Design any prepaid-credit or batched-settlement ledger as a separate custodial accounting feature with explicit user consent, durable double-entry records, refunds, reconciliation, and legal/security review. Do not represent internal credits as on-chain Pi. |
+| URL inspection | Not evidenced as complete. | Enforce HTTP(S)-only URLs, reject credentials, block loopback/private/link-local/reserved IP ranges after DNS resolution, revalidate every redirect, cap redirects/body/time, defend against DNS rebinding, and never execute fetched content. Add SSRF regression tests. |
+| File sharing and storage | Not evidenced as complete. | Verify current Pi SDK support before calling native sharing; otherwise use a clearly labeled browser download/share fallback. Add private storage, MIME/size limits, retention, deletion, and access controls. |
+| Agent builder / marketplace | Not evidenced as a production-ready service. | Start with reviewed templates and declared capabilities. Require confirmation for consequential actions, isolate execution, apply quotas, log actions, and keep paid listings disabled until billing and revocation flows pass. |
+| Simple / Pro modes | Existing UI needs feature-by-feature verification. | Test keyboard/accessibility, responsive layout, localization, and ensure developer diagnostics never expose secrets to ordinary users. |
+| SoloHost / Pi Desktop | Not evidenced as packaged or certified. | Build reproducible Docker Compose/config bundles, document supported Pi Desktop versions, scan images/dependencies, and test install/upgrade/rollback on a clean host. |
+| Governance / staking | Not evidenced as live or approved. | Use only documented and authorized APIs; distinguish proposal voting from binding protocol governance; prevent claims of voting weight unless the source and eligibility are verified. |
 
-### 2. Pi platform integration
-- Confirm current SDK/API behavior against official Pi Developer documentation before implementing or documenting it.
-- Keep Pi authentication separate from payment authorization.
-- For payments, require server-side approval and completion, durable order state, idempotency, recovery, and settlement read-back.
-- Do not assume a fixed minimum payment, configurable network fee, or a particular fee field without authoritative current documentation and an end-to-end Testnet test.
-- Keep Mainnet payment activation behind explicit approval and separate configuration.
+## Pi SDK and fee-policy guardrails
 
-### 3. Data and Supabase
-- Use a new, separately named project only after the owner confirms the organization and region and any nonzero cost is approved.
-- Design schema and migrations from actual application requirements; apply least privilege and row-level security.
-- Keep service-role credentials server-only. Do not migrate or modify the existing Supabase project as a shortcut.
-- Add retention, export, deletion, and privacy handling before collecting user data.
+- The documented Pi payment flow is frontend `Pi.createPayment(paymentData, callbacks)`, followed by server-side approval and server-side completion through the Pi Platform API. Deliver an entitlement only after successful completion is confirmed by the backend.
+- Pi SDK payment data includes amount, memo, and metadata. Do not invent or pass an undocumented custom network-fee parameter.
+- Pi's current developer examples for Stellar token operations retrieve the latest ledger record and read `base_fee_in_stroops`, then pass that value as the `fee` option to `StellarSdk.TransactionBuilder`. This applies to transactions the application itself constructs with Stellar SDK; it is not a fee override for the Pi.createPayment wallet flow.
+- Do not hard-code a universal `0.01 Pi` minimum or a priority multiplier without an authoritative, current Pi network source and a Testnet measurement. Network base fees are ledger/network data and must be handled in stroops with exact integer arithmetic.
+- If an application offers prepaid service credits or internal micro-billing, show that they are internal account units, not blockchain transfers. Require an auditable ledger, balance reconciliation, explicit terms, refund handling, and security review before enabling.
+- x402 is not a Pi SDK payment method. Any bridge between x402 and Pi must be specified and audited as a separate integration; never imply that batch settlement is automatically supported by Pi.
 
-### 4. URL and file inspection
-- Treat URL inspection as advisory, not a guarantee that a link is safe.
-- Reject non-HTTP(S) schemes, credentials in URLs, localhost/private-network targets, and redirect chains that resolve to private addresses.
-- Enforce response-size, redirect-count, and timeout limits; do not execute downloaded content.
-- For uploaded files, enforce type/size limits, store privately, and avoid exposing raw contents in logs.
+## Security and backend requirements
 
-### 5. Agents, marketplace, and subscriptions
-- Start with a catalog and explicit capability declarations; do not imply agents can transact or access private data by default.
-- Require user confirmation for consequential actions and maintain an auditable action record.
-- Keep subscriptions and entitlements off until durable billing records, idempotent webhooks, cancellation/refund handling, and access-revocation tests exist.
-- Separate demo listings from available, reviewed, or paid listings.
+- Keep privileged operations server-side. Validate and normalize all inputs at the boundary.
+- Store `GEMINI_API_KEY`, `PI_API_KEY`, Supabase service credentials, and signing material only in server-side environment scopes. Never ask users to paste secrets into chat or commit them.
+- Pi authentication and payment authorization are separate. Verify the access token against the Pi Platform API; verify each payment belongs to this app and matches a server-side order before approval/completion.
+- Make approve/complete callbacks idempotent because callbacks can be retried. Persist state transitions and perform read-back before delivering value.
+- Use request IDs, structured errors, bounded timeouts, rate limits, safe retries, and provider circuit breakers.
+- For URL scanning, resolve and validate every destination IP and redirect to prevent SSRF and DNS rebinding.
+- For personal data, define opt-in, retention, export, deletion, and access-control behavior before collection.
 
-### 6. Evidence-based research and monitoring
-- Display source, timestamp, and confidence basis for claims; distinguish sourced facts, inference, and speculation.
-- Avoid presenting conspiracy narratives or speculative maps as established facts. Include competing explanations and uncertainty.
-- Make monitoring opt-in where it involves personal data; document what is collected and how long it is retained.
+## Data and Supabase
 
-### 7. Readiness gates
-- [ ] Repository inventory and environment-variable audit completed.
-- [ ] Automated unit/integration tests pass.
+- Do not alter or migrate an existing Supabase production project as a shortcut.
+- Use a separate development project only after the owner confirms the organization and region and approves any nonzero cost.
+- Design schema and migrations from actual requirements; apply least privilege and row-level security.
+- Keep service-role credentials server-only. Add migration tests, RLS tests, backups, and rollback procedures before production use.
+
+## Testing and readiness gates
+
+- [ ] Current branch lint passes.
+- [ ] TypeScript check passes.
+- [ ] Production build passes.
+- [ ] Unit and integration tests cover news adapters, provider failures, timestamps, deduplication, and category mapping.
+- [ ] URL/file inspection abuse cases and SSRF regression tests pass.
 - [ ] Authentication and authorization boundaries reviewed.
-- [ ] URL/file inspection abuse cases tested.
 - [ ] Privacy, retention, and RLS reviewed.
-- [ ] Pi Testnet payment flow verified end-to-end, if payments are in scope.
-- [ ] Production configuration and rollback plan reviewed.
-- [ ] Owner reviews the final diff and approves deployment/submission.
+- [ ] Pi Testnet authentication/payment flow verified end-to-end, if payments are in scope.
+- [ ] Fee calculation uses current Testnet ledger data and exact stroop arithmetic, if Stellar transactions are in scope.
+- [ ] Preview deployment reaches READY and routes are smoke-tested.
+- [ ] Owner reviews the final diff and explicitly approves merge/release.
 
 ## Current scope boundary
 
-This document is a plan only. It does not assert that payment processing, fee routing, a transaction ledger, marketplace billing, URL scanning, file sharing, agent execution, PiOS listing, or Mainnet approval is currently operational. Keep unavailable features visibly disabled or clearly marked as prototypes until evidence is recorded.
+This document is a delivery and safety record, not evidence that every row is already implemented. In this change set, the news panel and source-coverage presentation are the delivered work; CI and Preview are still being validated. Pi payment processing, automatic fee routing, x402, internal credits, marketplace billing, URL scanning, file sharing, agent execution, SoloHost packaging, governance, and Mainnet approval must remain disabled or clearly labeled as planned until code and test evidence exist. Mainnet activation requires a separate explicit instruction from the owner.
