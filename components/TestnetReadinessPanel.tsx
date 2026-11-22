@@ -9,7 +9,7 @@ type Overview = {
   data?: {
     sources?: Array<{ source_key: string; display_name: string; source_type: string; coverage_note: string }>;
     agents?: Array<{ template_key: string; name: string; category: string; capability_level: string; testnet_enabled: boolean; mainnet_enabled: boolean; safety_notes: string }>;
-    news?: Array<{ id: string; title: string; category: string; canonical_url: string; source_domain: string; published_at: string | null; evidence_class: string }>;
+    news?: Array<{ id: string; title: string; category: string; canonical_url: string; source_domain: string; observed_at: string | null; evidence_class: string }>;
     hazards?: Array<{ id: string; title: string; hazard_type: string; severity_label: string | null; occurred_at: string | null; source_url: string }>;
     risks?: Array<{ id: string; title: string; risk_score: number; evidence_class: string; is_demo: boolean }>;
   };
