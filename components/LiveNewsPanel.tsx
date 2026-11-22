@@ -6,7 +6,7 @@ type Article = {
   categoryLabel: string;
   title: string;
   url: string;
-  publishedAt: string;
+  observedAt: string;
   sourceDomain: string;
 };
 type Payload = { fetchedAtUtc: string; articles: Article[]; note: string };
@@ -118,7 +118,7 @@ export default function LiveNewsPanel({ locale }: { locale: string }) {
                       </a>
                       <div className="mt-0.5 flex gap-2 text-[10px] text-white/40">
                         <span>{article.sourceDomain}</span>
-                        <time dateTime={article.publishedAt}>
+                        <time dateTime={article.observedAt}>
                           {new Date(article.publishedAt).toLocaleString(ar ? 'ar' : 'en', {
                             timeZone: 'UTC',
                             hour: '2-digit',
