@@ -2,6 +2,7 @@ import { stroopsToPi } from '@/lib/pi-fee.mjs';
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 15;
 
 type LedgerResponse = {
   _embedded?: { records?: Array<{ sequence?: string; base_fee_in_stroops?: string; closed_at?: string }> };
@@ -11,7 +12,7 @@ export async function GET() {
   try {
     const response = await fetch(
       'https://api.testnet.minepi.com/ledgers?order=desc&limit=1',
-      { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(9000) },
+      { cache: 'no-store', headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(12000) },
     );
     if (!response.ok) {
       return NextResponse.json(
@@ -43,9 +44,11 @@ export async function GET() {
     );
   } catch (error) {
     const errorCode = error instanceof Error ? error.name : 'UnknownError';
-    console.warn('Pi Testnet Horizon fee request failed', { errorCode });
+    const details = error as Error & { cause?: { code?: string; message?: string } };
+    const causeCode = details.cause?.code ?? null;
+    console.warn('Pi Testnet Horizon fee request failed', { errorCode, causeCode, message: details.message?.slice(0, 160) });
     return NextResponse.json(
-      { network: 'Pi Testnet', status: 'unavailable', errorCode, reason: 'Testnet Horizon could not be reached.' },
+      { network: 'Pi Testnet', status: 'unavailable', errorCode, causeCode, reason: 'Testnet Horizon could not be reached.' },
       { status: 502, headers: { 'Cache-Control': 'no-store' } },
     );
   }
