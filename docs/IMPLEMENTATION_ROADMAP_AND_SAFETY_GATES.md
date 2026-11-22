@@ -74,7 +74,7 @@ This document is a delivery and safety record, not evidence that every row is al
 
 ## Verified Testnet infrastructure added in the current development slice
 
-The isolated Supabase project `foresight-paths-dev` (project ref `mlrbbnjoczpfmbgewgrm`) is separate from the PiRC Supabase project. It is on the organization's Free plan. The following schema is deployed there and versioned in `supabase/migrations/20261122195345_foresight_core_data_and_testnet_ledger.sql`, `20261122195413_secure_private_ledger_permissions_and_balance.sql`, and `20261122195539_service_role_private_ledger_policies_and_indexes.sql`:
+The isolated Supabase project `foresight-paths-dev` (project ref `mlrbbnjoczpfmbgewgrm`) is separate from the PiRC Supabase project. It is on the organization's Free plan. The following schema is deployed there and versioned in `supabase/migrations/20261122195345_foresight_core_data_and_testnet_ledger.sql`, `20261122195413_secure_private_ledger_permissions_and_balance.sql`, `20261122195539_service_role_private_ledger_policies_and_indexes.sql`, and `20261122195737_pi_testnet_payment_intent_rpcs.sql`:
 
 - Public, read-only datasets: `source_registry`, `news_items`, `hazard_events`, `risk_assessments`, `agent_templates`, and `scenario_snapshots`.
 - Private schema: `payment_intents`, `ledger_accounts`, `ledger_transactions`, and immutable `ledger_entries`. Private schema access is revoked from `anon` and `authenticated`; only the server `service_role` is granted access.
@@ -86,11 +86,11 @@ The Preview environment on branch `fix/ci-clean-base` has only the Supabase proj
 
 ### Payment activation remains gated
 
-The database structure is a foundation, not a completed payment integration. The application must not approve, complete, or deliver paid entitlements until all of the following are implemented and verified:
+The database structure, service-only idempotent payment RPCs, and backend approve/complete/read-back code are now present, but live payment processing remains fail-closed and has not been end-to-end verified. The application must not enable payment approval or deliver paid entitlements until all of the following are completed and verified:
 
 1. Add `PI_API_KEY` as a Preview-only encrypted environment secret through Vercel; never commit or paste it into source.
 2. Add `SUPABASE_SERVICE_ROLE_KEY` as a Preview-only encrypted server secret; never prefix it with `NEXT_PUBLIC_`.
-3. Implement server-side Pi `/v2/me` verification, server-side payment retrieval, exact order/amount/user/network matching, idempotent approve/complete, and reconciliation for incomplete payments.
+3. Configure and verify the existing server-side Pi `/v2/me` verification, payment retrieval, exact order/amount/user/plan matching, idempotent approve/complete, private intent persistence, and reconciliation for incomplete payments.
 4. Verify all flows using Pi Sandbox/Testnet and a real developer app configuration. Deliver no entitlement before successful server-side completion.
 5. Add a Testnet fee quote path for any Stellar SDK-built transaction; use the current ledger base fee in stroops, integer arithmetic, and a safe failure mode. The fee endpoint in this slice is telemetry only, not a transaction builder.
 6. Add refund, dispute, replay, callback retry, ledger balancing, and audit tests before enabling prepaid credits or x402 settlement.
