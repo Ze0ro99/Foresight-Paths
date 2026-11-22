@@ -11,6 +11,10 @@ export async function GET() {
     process.env.PI_API_KEY &&
     process.env.PI_API_KEY !== 'MY_PI_PLATFORM_SERVER_API_KEY'
   );
+  const supabaseLedgerConfigured = Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
   const piSandboxMode = process.env.PI_SANDBOX_MODE !== 'false';
   const piPaymentExecutionFlag = process.env.PI_PAYMENTS_ENABLED === 'true';
   const piLedgerReleaseFlag = process.env.PI_ENTITLEMENT_LEDGER_ENABLED === 'true';
@@ -18,20 +22,25 @@ export async function GET() {
   const piPaymentReleaseFlagsEnabled =
     piPaymentExecutionFlag &&
     piLedgerReleaseFlag &&
-    (piSandboxMode || piMainnetReleaseFlag);
+    piSandboxMode;
   const piPaymentExecutionEnabled =
-    piServerKeyConfigured && piPaymentReleaseFlagsEnabled;
+    piServerKeyConfigured && supabaseLedgerConfigured && piPaymentReleaseFlagsEnabled;
 
   const checks = {
     application: 'ok',
     globalSense: 'available_with_partial_source_coverage',
     geminiAnalysis: geminiConfigured ? 'configured' : 'not_configured',
-    piIdentity: 'requires_pi_browser_session',\n    supabaseLedger: supabaseLedgerConfigured ? 'server_credentials_configured' : 'read_only_data_only_private_ledger_key_missing',
+    piIdentity: 'requires_pi_browser_session',
+    supabaseLedger: supabaseLedgerConfigured
+      ? 'server_credentials_configured'
+      : 'read_only_data_only_private_ledger_key_missing',
     piPayments: !piServerKeyConfigured
       ? 'not_configured'
-      : piPaymentExecutionEnabled
-        ? 'release_flags_enabled_runtime_verification_required'
-        : 'payments_disabled_pending_release_gates',
+      : !supabaseLedgerConfigured
+        ? 'private_ledger_not_configured'
+        : piPaymentExecutionEnabled
+          ? 'testnet_release_flags_enabled_runtime_verification_required'
+          : 'payments_disabled_pending_release_gates',
     piPaymentExecutionEnabled,
     piPaymentReleaseFlags: {
       paymentExecution: piPaymentExecutionFlag,
@@ -44,9 +53,7 @@ export async function GET() {
     rewardedAds: 'disabled_until_provider_verification',
   };
 
-  const ready =
-    geminiConfigured &&
-    piServerKeyConfigured;
+  const ready = geminiConfigured && piServerKeyConfigured;
 
   return NextResponse.json(
     {
