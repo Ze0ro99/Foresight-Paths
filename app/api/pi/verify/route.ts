@@ -79,20 +79,38 @@ function validatePayment(
   );
 }
 
+function isPaymentReleaseEnabled() {
+  const sandboxMode = process.env.PI_SANDBOX_MODE !== 'false';
+  return (
+    process.env.PI_PAYMENTS_ENABLED === 'true' &&
+    process.env.PI_ENTITLEMENT_LEDGER_ENABLED === 'true' &&
+    (sandboxMode || process.env.PI_MAINNET_PAYMENTS_APPROVED === 'true')
+  );
+}
+
 export async function GET() {
   const sandboxMode = process.env.PI_SANDBOX_MODE !== 'false';
   const configured = Boolean(
     process.env.PI_API_KEY &&
     process.env.PI_API_KEY !== 'MY_PI_PLATFORM_SERVER_API_KEY'
   );
+  const paymentEnabled = configured && isPaymentReleaseEnabled();
   return NextResponse.json({
     service: 'Pi verification gateway',
-    status: configured ? 'server_key_configured' : 'awaiting_server_key',
+    status: !configured
+      ? 'awaiting_server_key'
+      : paymentEnabled
+        ? 'payment_release_enabled'
+        : 'payments_disabled_pending_release_gates',
     sandboxMode,
-    paymentFlow: 'server_verified_approval_and_completion',
-    paymentEnabled: configured,
+    paymentFlow: paymentEnabled
+      ? 'server_verified_approval_and_completion'
+      : 'disabled_until_ledger_and_release_approval',
+    paymentEnabled,
     plans: AUTHORITATIVE_PLAN_PRICES_PI,
-    note: 'No entitlement is granted by this status endpoint.',
+    note: paymentEnabled
+      ? 'Settlement verification is active; entitlements still require durable ledger confirmation.'
+      : 'Payment approval and completion are disabled until the durable ledger and explicit release flags are configured.',
   });
 }
 
@@ -129,6 +147,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'payment_approve' || action === 'payment_complete') {
+    if (!isPaymentReleaseEnabled()) {
+      return unavailable(
+        'Pi payment approval and completion are disabled until a durable order/entitlement ledger is deployed and the release flags are explicitly enabled.'
+      );
+    }
     const apiKey = process.env.PI_API_KEY;
     if (!apiKey || apiKey === 'MY_PI_PLATFORM_SERVER_API_KEY') {
       return unavailable('Server-side Pi Platform API key is not configured.');
