@@ -10,6 +10,8 @@ type PiUser = { uid?: string; username?: string };
 type PiPayment = {
   identifier?: string;
   user_uid?: string;
+  network?: 'Pi Network' | 'Pi Testnet';
+  direction?: 'user_to_app' | 'app_to_user';
   amount?: number;
   metadata?: Record<string, unknown>;
   status?: {
@@ -42,7 +44,7 @@ function unavailable(message: string, status = 503) {
 }
 
 function getBearer(req: NextRequest) {
-  return req.headers.get('authorization')?.match(/^Bearer\\s+(.+)$/i)?.[1]?.trim();
+  return req.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
 }
 
 function getSupabaseConfig() {
@@ -141,6 +143,8 @@ function validatePayment(
   const expectedAmount = Number(AUTHORITATIVE_PLAN_PRICES_PI[planId]);
   return (
     payment.user_uid === user.uid &&
+    payment.network === 'Pi Testnet' &&
+    payment.direction === 'user_to_app' &&
     typeof payment.amount === 'number' &&
     Number.isFinite(payment.amount) &&
     Number(payment.amount.toFixed(7)) === expectedAmount &&
