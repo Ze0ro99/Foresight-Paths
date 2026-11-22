@@ -40,6 +40,7 @@ import ScenarioDetailDrawer from './ScenarioDetailDrawer';
 import BackendMechanicsModal, { BackendTab } from './BackendMechanicsModal';
 import AddEventModal from './AddEventModal';
 import LiveNewsPanel from './LiveNewsPanel';
+import TestnetReadinessPanel from './TestnetReadinessPanel';
 
 export default function ResearchWorkspace() {
   const [events, setEvents] = useState<LiveEvent[]>(() =>
@@ -614,6 +615,7 @@ export default function ResearchWorkspace() {
       )}
 
       <LiveNewsPanel locale={locale} />
+      <TestnetReadinessPanel locale={locale} />
 
       {apiError && (
         <div
