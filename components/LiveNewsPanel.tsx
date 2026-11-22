@@ -20,6 +20,7 @@ const categories = [
   'الأمن السيبراني',
   'العلوم والتقنية',
   'الطاقة والبنية التحتية',
+  'أخبار متنوعة',
 ];
 
 export default function LiveNewsPanel({ locale }: { locale: string }) {
