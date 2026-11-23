@@ -213,7 +213,7 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
         <button
           type="button"
           onClick={() => void signIn()}
-          disabled={!sdkReady || busy}
+          disabled={!sdkReady || busy || recoveryPending}
           className="rounded border border-violet-200/25 px-3 py-2 text-[11px] text-violet-100 disabled:opacity-40"
         >
           {busy ? (ar ? 'جارٍ التنفيذ…' : 'Working…') : accessToken ? (ar ? 'إعادة التحقق' : 'Re-verify Pi') : (ar ? 'تسجيل الدخول عبر Pi' : 'Sign in with Pi')}
