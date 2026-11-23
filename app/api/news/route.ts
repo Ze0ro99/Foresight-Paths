@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GDELT_BROAD_QUERY, classifyGdeltUpstreamError, parseGdeltResponse } from '@/lib/gdelt.mjs';
+import { GDELT_BROAD_QUERY, GDELT_REFRESH_INTERVAL_SECONDS, classifyGdeltUpstreamError, parseGdeltResponse } from '@/lib/gdelt.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
