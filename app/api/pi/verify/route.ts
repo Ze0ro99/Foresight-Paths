@@ -170,7 +170,7 @@ async function recoverIncompletePayment(paymentId: string) {
   }
   const recovered = getRecoverableTestnetPayment(before.data, paymentId);
   if (!recovered) {
-    return unavailable('The Pi payment does not match this app, a server-priced Testnet plan, or a submitted and approved U2A transaction.', 409);
+    return unavailable('The Pi payment does not match this app, a server-priced Testnet plan, or a submitted Testnet U2A transaction.', 409);
   }
 
   const created = await syncPaymentIntent({
@@ -199,13 +199,18 @@ async function recoverIncompletePayment(paymentId: string) {
   }
 
   let intent = created;
+  let paymentBeforeCompletion = before;
   if (intent.status === 'created') {
     if (!recovered.developerApproved) {
-      const approval = await piRequest<PiPayment>(paymentPath + '/approve', apiKey, {
+      const approval = await piRequest<unknown>(paymentPath + '/approve', apiKey, {
         method: 'POST',
       });
-      if (!approval.ok || !approval.data?.status?.developer_approved) {
-        return unavailable('Pi did not confirm server-side approval for the incomplete Testnet payment.', 502);
+      if (!approval.ok) {
+        return unavailable('Pi did not accept server-side approval for the incomplete Testnet payment.', 502);
+      }
+      paymentBeforeCompletion = await piRequest<PiPayment>(paymentPath, apiKey);
+      if (!paymentBeforeCompletion.ok || paymentBeforeCompletion.data?.status?.developer_approved !== true) {
+        return unavailable('Pi approval was submitted but its authoritative read-back is not yet confirmed.', 502);
       }
     }
     const approved = await syncPaymentIntent({
@@ -224,12 +229,12 @@ async function recoverIncompletePayment(paymentId: string) {
     return unavailable('The incomplete payment is not in an approved state and requires manual review.', 409);
   }
 
-  let readBack = before;
+  let readBack = paymentBeforeCompletion;
   const alreadyVerified =
-    before.data.status?.developer_completed === true &&
-    before.data.status?.transaction_verified === true &&
-    before.data.transaction?.verified === true &&
-    before.data.transaction?.txid === recovered.txid;
+    paymentBeforeCompletion.data?.status?.developer_completed === true &&
+    paymentBeforeCompletion.data?.status?.transaction_verified === true &&
+    paymentBeforeCompletion.data?.transaction?.verified === true &&
+    paymentBeforeCompletion.data?.transaction?.txid === recovered.txid;
   if (!alreadyVerified) {
     const completion = await piRequest<PiPayment>(paymentPath + '/complete', apiKey, {
       method: 'POST',
