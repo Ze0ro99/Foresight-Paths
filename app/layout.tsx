@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Cairo, IBM_Plex_Sans_Arabic, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import Script from 'next/script';
+import { Analytics } from '@vercel/analytics/next';
 
 const cairo = Cairo({
   subsets: ['arabic', 'latin'],
@@ -55,6 +56,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         {children}
         <Script src="https://sdk.minepi.com/pi-sdk.js" strategy="afterInteractive" />
+        <Analytics />
       </body>
     </html>
   );
