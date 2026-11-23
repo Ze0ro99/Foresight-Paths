@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { GDELT_BROAD_QUERY, classifyGdeltUpstreamError, parseGdeltResponse } from '@/lib/gdelt.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
@@ -28,8 +29,6 @@ const labels: Record<Category, string> = {
   energy: 'الطاقة والبنية التحتية',
   other: 'أخبار متنوعة',
 };
-
-const broadQuery = 'earthquake OR flood OR wildfire OR hurricane OR volcano OR tsunami OR disaster OR war OR conflict OR ceasefire OR election OR government OR diplomacy OR sanctions OR inflation OR markets OR trade OR recession OR outbreak OR epidemic OR pandemic OR cyberattack OR ransomware OR data breach OR science OR space OR technology OR artificial intelligence OR oil OR gas OR electricity OR renewable energy';
 
 function classifyArticle(title: string): Category {
   const value = title.toLowerCase();
@@ -102,24 +101,55 @@ async function persistNews(articles: NewsItem[]): Promise<string> {
 
 export async function GET() {
   const params = new URLSearchParams({
-    query: broadQuery,
+    query: GDELT_BROAD_QUERY,
     mode: 'ArtList',
     format: 'json',
     maxrecords: '50',
     sort: 'DateDesc',
+    timespan: '7d',
   });
   let articles: NewsItem[] = [];
   let sourceError: string | null = null;
   try {
     const response = await fetch('https://api.gdeltproject.org/api/v2/doc/doc?' + params, {
+      headers: { Accept: 'application/json', 'User-Agent': 'ForesightPaths/0.1' },
       signal: AbortSignal.timeout(15000),
       next: { revalidate: 120 },
     });
     if (!response.ok) {
-      sourceError = 'GDELT_HTTP_' + response.status;
+      const rawPayload = await response.text().catch(() => '');
+      const classified = classifyGdeltUpstreamError(
+        response.status,
+        response.headers.get('content-type') ?? '',
+        rawPayload,
+      );
+      sourceError = classified === 'GDELT_INVALID_RESPONSE'
+        ? 'GDELT_HTTP_' + response.status
+        : classified;
+      console.warn('GDELT global news request returned an upstream error', {
+        status: response.status,
+        sourceError,
+        preview: rawPayload.slice(0, 160).replace(/\s+/g, ' '),
+      });
     } else {
-      const payload = await response.json() as { articles?: Article[] };
-      articles = (Array.isArray(payload.articles) ? payload.articles : []).flatMap((article) => {
+      const rawPayload = await response.text();
+      let payload: { articles: Article[] } | null = null;
+      try {
+        payload = parseGdeltResponse(rawPayload) as { articles: Article[] };
+      } catch {
+        sourceError = classifyGdeltUpstreamError(
+          response.status,
+          response.headers.get('content-type') ?? '',
+          rawPayload,
+        );
+        console.warn('GDELT global news response was not valid JSON', {
+          status: response.status,
+          contentType: response.headers.get('content-type') ?? 'unknown',
+          sourceError,
+          preview: rawPayload.slice(0, 160).replace(/\s+/g, ' '),
+        });
+      }
+      articles = (Array.isArray(payload?.articles) ? payload.articles : []).flatMap((article) => {
         let url: URL;
         try {
           url = new URL(article.url || '');
@@ -156,7 +186,11 @@ export async function GET() {
     (Object.keys(labels) as Category[]).map((category) => [category, unique.filter((article) => article.category === category).length]),
   );
   const categoriesRequested = Object.keys(labels).filter((category) => category !== 'other');
-  const persistence = await persistNews(unique);
+  const persistence = sourceError
+    ? 'skipped_source_unavailable'
+    : unique.length === 0
+      ? 'no_new_articles'
+      : await persistNews(unique);
 
   return NextResponse.json({
     fetchedAtUtc: new Date().toISOString(),
