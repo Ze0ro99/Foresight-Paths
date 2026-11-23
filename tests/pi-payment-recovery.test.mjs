@@ -16,7 +16,7 @@ function payment(overrides = {}) {
   };
 }
 
-test('accepts only the app-scoped approved Pi Testnet U2A payment returned by Pi', () => {
+test('accepts an app-scoped submitted Pi Testnet U2A payment returned by Pi', () => {
   assert.deepEqual(getRecoverableTestnetPayment(payment(), 'pi_payment_123456'), {
     paymentId: 'pi_payment_123456',
     userUid: 'app-user-uid',
