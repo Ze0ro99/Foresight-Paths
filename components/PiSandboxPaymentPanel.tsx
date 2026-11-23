@@ -21,7 +21,7 @@ type PiSdk = NonNullable<Window['Pi']> & {
   ) => void;
 };
 
-type GatewayStatus = { paymentEnabled?: boolean; status?: string; sandboxMode?: boolean };
+type GatewayStatus = { paymentEnabled?: boolean; status?: string; sandboxMode?: boolean; missingRequirements?: string[] };
 
 export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
   const ar = locale === 'ar';
@@ -33,7 +33,8 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
   const [gatewayStatus, setGatewayStatus] = useState('checking');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [incomplete, setIncomplete] = useState<PiPaymentDto | null>(null);
+  const [recoveryPending, setRecoveryPending] = useState(false);
+  const [recoveryBlocked, setRecoveryBlocked] = useState(false);
 
   const refreshGateway = useCallback(async () => {
     try {
@@ -76,33 +77,44 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
     };
   }, [ar, refreshGateway]);
 
-  useEffect(() => {
-    if (!incomplete || !accessToken) return;
-    const planId = typeof incomplete.metadata?.planId === 'string' ? incomplete.metadata.planId : '';
-    const txid = incomplete.transaction?.txid;
-    if (!incomplete.identifier || !planId || !txid) {
-      const warning = window.setTimeout(() => setMessage(ar
-        ? 'توجد دفعة غير مكتملة؛ لا تتوفر بيانات كافية لإكمالها بأمان. لا تبدأ دفعة جديدة.'
-        : 'An incomplete payment was found without enough verified metadata to recover safely. Do not start another payment.'), 0);
-      return () => window.clearTimeout(warning);
+  const handleIncompletePaymentFound = useCallback((payment: unknown) => {
+    const incompletePayment = payment as PiPaymentDto;
+    const paymentId = incompletePayment?.identifier;
+    setRecoveryBlocked(true);
+    if (!paymentId) {
+      setRecoveryPending(false);
+      setMessage(ar
+        ? 'وجد Pi دفعة غير مكتملة دون معرّف صالح؛ أوقفنا الدفع الجديد لحين المراجعة.'
+        : 'Pi found an incomplete payment without a valid identifier. New payments are blocked pending review.');
+      return;
     }
-    let active = true;
+
+    // Pi invokes this callback before authenticate() resolves, so no access token is available here.
+    // The server retrieves the payment by ID with the app-scoped Server API Key and validates it.
+    setRecoveryPending(true);
+    setMessage(ar ? 'جارٍ استعادة الدفعة السابقة والتحقق منها مباشرة عبر خادم Pi…' : 'Recovering the previous payment directly from Pi before allowing a new one…');
     void fetch('/api/pi/verify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
-      body: JSON.stringify({ action: 'payment_complete', paymentId: incomplete.identifier, planId, txid }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'payment_recover_incomplete', paymentId }),
     }).then(async (response) => {
       const result = await response.json();
-      if (!active) return;
-      setMessage(response.ok && result.verified
-        ? (ar ? 'تمت استعادة الدفعة والتحقق منها على Testnet.' : 'Incomplete Testnet payment was recovered and verified.')
-        : (result.error || (ar ? 'تعذرت استعادة الدفعة؛ يلزم التحقق اليدوي.' : 'Payment recovery needs manual review.')));
-      if (response.ok) setIncomplete(null);
+      if (response.ok && result.verified === true) {
+        setRecoveryBlocked(false);
+        setMessage(ar
+          ? 'تمت استعادة الدفعة السابقة والتحقق منها على Testnet. لا توجد ميزة أو أرصدة مدفوعة ممنوحة.'
+          : 'The previous Testnet payment was recovered and verified. No paid entitlement or credit was granted.');
+      } else {
+        setRecoveryBlocked(true);
+        setMessage(result.error || (ar ? 'تعذرت استعادة الدفعة؛ تم إيقاف بدء دفعة جديدة لحين المراجعة.' : 'Payment recovery failed. New payments remain blocked pending review.'));
+      }
+      setRecoveryPending(false);
     }).catch(() => {
-      if (active) setMessage(ar ? 'تعذر الاتصال بخدمة استعادة الدفعة.' : 'Could not reach the payment recovery service.');
+      setRecoveryBlocked(true);
+      setRecoveryPending(false);
+      setMessage(ar ? 'تعذر الاتصال بخدمة استعادة الدفعة؛ يظل بدء دفعة جديدة محظورًا.' : 'Could not reach the payment recovery service. New payments remain blocked.');
     });
-    return () => { active = false; };
-  }, [incomplete, accessToken, ar]);
+  }, [ar]);
 
   const signIn = async () => {
     if (!window.Pi || !sdkReady) {
@@ -112,9 +124,7 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
     setBusy(true);
     setMessage('');
     try {
-      const auth = await window.Pi.authenticate(['username', 'payments'], (payment: unknown) => {
-        setIncomplete(payment as PiPaymentDto);
-      });
+      const auth = await window.Pi.authenticate(['username', 'payments'], handleIncompletePaymentFound);
       const response = await fetch('/api/pi/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.accessToken}` },
@@ -135,7 +145,7 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
 
   const startPayment = (planId: 'testnet_payment_0_1_demo' | 'testnet_payment_1_0_demo') => {
     const pi = window.Pi as PiSdk | undefined;
-    if (!pi || !accessToken || !paymentEnabled) return;
+    if (!pi || !accessToken || !paymentEnabled || recoveryPending || recoveryBlocked) return;
     const amount = planId === 'testnet_payment_0_1_demo' ? 0.1 : 1;
     const memo = planId === 'testnet_payment_0_1_demo'
       ? 'Foresight Paths Testnet payment demo — no entitlement'
@@ -213,10 +223,10 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
       </div>
       {accessToken && paymentEnabled && (
         <div className="mt-3 flex flex-wrap gap-2">
-          <button type="button" disabled={busy} onClick={() => startPayment('testnet_payment_0_1_demo')} className="rounded border border-emerald-300/20 px-3 py-2 text-[11px] text-emerald-100 disabled:opacity-40">
+          <button type="button" disabled={busy || recoveryPending || recoveryBlocked} onClick={() => startPayment('testnet_payment_0_1_demo')} className="rounded border border-emerald-300/20 px-3 py-2 text-[11px] text-emerald-100 disabled:opacity-40">
             {ar ? 'اختبار 0.1 Test-Pi' : 'Test 0.1 Test-Pi'}
           </button>
-          <button type="button" disabled={busy} onClick={() => startPayment('testnet_payment_1_0_demo')} className="rounded border border-emerald-300/20 px-3 py-2 text-[11px] text-emerald-100 disabled:opacity-40">
+          <button type="button" disabled={busy || recoveryPending || recoveryBlocked} onClick={() => startPayment('testnet_payment_1_0_demo')} className="rounded border border-emerald-300/20 px-3 py-2 text-[11px] text-emerald-100 disabled:opacity-40">
             {ar ? 'اختبار 1 Test-Pi' : 'Test 1 Test-Pi'}
           </button>
         </div>
@@ -226,6 +236,8 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
           {ar ? 'الدفع معطّل حتى إدخال مفتاح Pi Testnet ومفتاح Supabase الخادمي وتفعيل بوابات Preview بعد المراجعة.' : 'Payments remain disabled until the Pi Testnet key, server-only Supabase key, and reviewed Preview release gates are configured.'}
         </p>
       )}
+      {recoveryPending && <p role="status" className="mt-2 text-[10px] text-amber-200">{ar ? 'استعادة الدفعة السابقة جارية؛ لن نبدأ دفعة جديدة الآن.' : 'Previous payment recovery is in progress; a new payment is blocked.'}</p>}
+      {recoveryBlocked && !recoveryPending && <p role="status" className="mt-2 text-[10px] text-amber-200">{ar ? 'يوجد تعارض أو دفعة غير مكتملة؛ يلزم إكمال الاستعادة أو المراجعة قبل بدء دفعة جديدة.' : 'An incomplete payment still needs recovery or manual review before another payment can start.'}</p>}
       {message && <p role="status" className="mt-3 text-[11px] leading-relaxed text-cyan-100/80">{message}</p>}
     </div>
   );
