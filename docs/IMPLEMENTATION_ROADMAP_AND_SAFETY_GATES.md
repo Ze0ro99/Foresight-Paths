@@ -127,7 +127,7 @@ Official references:
 ### Preview configuration at this audit
 
 - `PI_API_KEY` is absent from Preview branch `fix/ci-clean-base`.
-- `SUPABASE_SERVICE_ROLE_KEY` exists as a sensitive Preview variable but its stored value is empty. Treat it as missing.
+- `SUPABASE_SERVICE_ROLE_KEY` exists as a sensitive Preview variable. The metadata listing uses `decrypt=false`, so its blank `value` field is redaction, not proof of an empty secret. The READY Preview's live `/api/health` and `/api/pi/verify` responses report `supabaseLedger=server_credentials_configured` and `ledgerConfigured=true`.
 - `NEXT_PUBLIC_SUPABASE_URL` and the publishable key are configured for the isolated `foresight-paths-dev` project.
 - Testnet release flags are set for Preview; entitlement delivery and Mainnet approval remain false.
 - Consequently, approval/completion/recovery are fail-closed. Both server secrets must be entered directly in Vercel Preview settings and an actual Pi Sandbox payment plus interrupted-payment recovery must pass before the flow is reported as live.
