@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getPiGatewayReadiness } from '@/lib/pi-readiness.mjs';
+import { AUTHORITATIVE_PLAN_PRICES_PI, getRecoverableTestnetPayment } from '@/lib/pi-payment.mjs';
 
 const PI_API_BASE = 'https://api.minepi.com/v2';
-const AUTHORITATIVE_PLAN_PRICES_PI: Record<string, string> = {
-  testnet_payment_0_1_demo: '0.1',
-  testnet_payment_1_0_demo: '1',
-};
-
 type PiUser = { uid?: string; username?: string };
 type PiPayment = {
   identifier?: string;
@@ -49,14 +46,13 @@ function getBearer(req: NextRequest) {
 
 function getSupabaseConfig() {
   return {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-    key: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),
+    key: process.env.SUPABASE_SERVICE_ROLE_KEY?.trim(),
   };
 }
 
 function hasDurableLedger() {
-  const { url, key } = getSupabaseConfig();
-  return Boolean(url && key && key !== 'YOUR_SUPABASE_SERVICE_ROLE_KEY');
+  return getPiGatewayReadiness().ledgerConfigured;
 }
 
 async function ledgerRpc<T>(name: string, body: Record<string, unknown>): Promise<T | null> {
@@ -155,40 +151,142 @@ function validatePayment(
 }
 
 function isPaymentReleaseEnabled() {
-  const sandboxMode = process.env.PI_SANDBOX_MODE !== 'false';
-  return (
-    sandboxMode &&
-    process.env.PI_PAYMENTS_ENABLED === 'true' &&
-    process.env.PI_PAYMENT_INTENT_LEDGER_READY === 'true' &&
-    hasDurableLedger()
-  );
+  return getPiGatewayReadiness().paymentEnabled;
+}
+
+async function recoverIncompletePayment(paymentId: string) {
+  if (!isPaymentReleaseEnabled()) {
+    return unavailable('Pi Testnet payment recovery is disabled until the server key, private ledger credentials, and Preview release gates are configured.');
+  }
+  const apiKey = process.env.PI_API_KEY?.trim();
+  if (!apiKey) return unavailable('Testnet Server API Key is not configured.');
+
+  const paymentPath = '/payments/' + encodeURIComponent(paymentId);
+  const before = await piRequest<PiPayment>(paymentPath, apiKey);
+  if (!before.ok || !before.data) {
+    return unavailable('Pi could not retrieve the incomplete payment from this app account.', 502);
+  }
+  const recovered = getRecoverableTestnetPayment(before.data, paymentId);
+  if (!recovered) {
+    return unavailable('The Pi payment does not match this app, a server-priced Testnet plan, or a submitted and approved U2A transaction.', 409);
+  }
+
+  const created = await syncPaymentIntent({
+    paymentId: recovered.paymentId,
+    userUid: recovered.userUid,
+    amountPi: recovered.amountPi,
+    planId: recovered.planId,
+    status: 'created',
+  });
+  if (!created) return unavailable('The private payment ledger is not configured.', 503);
+
+  if (created.status === 'completed') {
+    if (created.transaction_verified && created.pi_txid === recovered.txid) {
+      return NextResponse.json({
+        completed: true,
+        verified: true,
+        recovered: true,
+        idempotent: true,
+        paymentId,
+        txid: recovered.txid,
+        planId: recovered.planId,
+        entitlementGranted: false,
+      });
+    }
+    return unavailable('The ledger already contains a conflicting completed transaction for this payment.', 409);
+  }
+
+  let intent = created;
+  if (intent.status === 'created') {
+    const approved = await syncPaymentIntent({
+      paymentId,
+      userUid: recovered.userUid,
+      amountPi: recovered.amountPi,
+      planId: recovered.planId,
+      status: 'approved',
+    });
+    if (!approved || (approved.status !== 'approved' && approved.status !== 'completed')) {
+      return unavailable('The incomplete payment could not be reconciled to an approved ledger intent.', 503);
+    }
+    intent = approved;
+  }
+  if (intent.status !== 'approved') {
+    return unavailable('The incomplete payment is not in an approved state and requires manual review.', 409);
+  }
+
+  let readBack = before;
+  const alreadyVerified =
+    before.data.status?.developer_completed === true &&
+    before.data.status?.transaction_verified === true &&
+    before.data.transaction?.verified === true &&
+    before.data.transaction?.txid === recovered.txid;
+  if (!alreadyVerified) {
+    const completion = await piRequest<PiPayment>(paymentPath + '/complete', apiKey, {
+      method: 'POST',
+      body: JSON.stringify({ txid: recovered.txid }),
+    });
+    if (!completion.ok) {
+      return unavailable('Pi did not confirm server-side completion for the incomplete Testnet payment.', 502);
+    }
+    readBack = await piRequest<PiPayment>(paymentPath, apiKey);
+  }
+
+  const verified =
+    readBack.ok &&
+    readBack.data?.user_uid === recovered.userUid &&
+    readBack.data?.network === 'Pi Testnet' &&
+    readBack.data?.direction === 'user_to_app' &&
+    readBack.data?.status?.transaction_verified === true &&
+    readBack.data?.status?.developer_completed === true &&
+    readBack.data?.transaction?.txid === recovered.txid &&
+    readBack.data?.transaction?.verified === true;
+  if (!verified) {
+    return unavailable('Pi completion has not passed authoritative read-back verification. The payment remains blocked from reuse.', 502);
+  }
+
+  const completed = await syncPaymentIntent({
+    paymentId,
+    userUid: recovered.userUid,
+    amountPi: recovered.amountPi,
+    planId: recovered.planId,
+    status: 'completed',
+    txid: recovered.txid,
+    transactionVerified: true,
+  });
+  if (!completed || completed.status !== 'completed' || completed.pi_txid !== recovered.txid || !completed.transaction_verified) {
+    return unavailable('Pi verified the payment, but the private ledger could not confirm the final state. Manual reconciliation is required.', 503);
+  }
+
+  return NextResponse.json({
+    completed: true,
+    verified: true,
+    recovered: true,
+    idempotent: alreadyVerified,
+    paymentId,
+    txid: recovered.txid,
+    planId: recovered.planId,
+    authoritativePricePi: recovered.amountPi,
+    ledgerStatus: completed.status,
+    entitlementGranted: false,
+    note: 'Incomplete Testnet payment recovered from the app-scoped Pi payment record. No paid entitlement was granted.',
+  });
 }
 
 export async function GET() {
-  const sandboxMode = process.env.PI_SANDBOX_MODE !== 'false';
-  const configured = Boolean(
-    process.env.PI_API_KEY &&
-    process.env.PI_API_KEY !== 'MY_PI_PLATFORM_SERVER_API_KEY'
-  );
-  const ledgerConfigured = hasDurableLedger();
-  const paymentEnabled = configured && ledgerConfigured && isPaymentReleaseEnabled();
+  const readiness = getPiGatewayReadiness();
   return NextResponse.json({
     service: 'Pi verification gateway',
-    status: !configured
-      ? 'awaiting_server_key'
-      : !ledgerConfigured
-        ? 'awaiting_private_ledger_credentials'
-        : paymentEnabled
-          ? 'testnet_payment_release_enabled'
-          : 'payments_disabled_pending_release_gates',
-    sandboxMode,
-    ledgerConfigured,
-    paymentIntentLedgerReady: process.env.PI_PAYMENT_INTENT_LEDGER_READY === 'true',
+    status: readiness.status,
+    sandboxMode: readiness.sandboxMode,
+    serverKeyConfigured: readiness.piApiKeyConfigured,
+    ledgerConfigured: readiness.ledgerConfigured,
+    paymentIntentLedgerReady: readiness.paymentIntentLedgerReady,
+    missingRequirements: readiness.missingRequirements,
     entitlementDeliveryEnabled: false,
-    paymentFlow: paymentEnabled
+    paymentFlow: readiness.paymentEnabled
       ? 'testnet_server_verified_approval_and_completion_with_durable_intent_only'
       : 'disabled_until_testnet_credentials_and_release_gates_pass',
-    paymentEnabled,
+    paymentEnabled: readiness.paymentEnabled,
     plans: AUTHORITATIVE_PLAN_PRICES_PI,
     note: 'Only Testnet/Sandbox is accepted by this gateway. A successful settlement is persisted, but no paid entitlement is granted by this route.',
   });
@@ -196,7 +294,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   let body: {
-    action?: 'auth_me' | 'payment_approve' | 'payment_complete' | 'rewarded_ad_verify';
+    action?: 'auth_me' | 'payment_approve' | 'payment_complete' | 'payment_recover_incomplete' | 'rewarded_ad_verify';
     planId?: string;
     paymentId?: string;
     txid?: string;
@@ -223,6 +321,17 @@ export async function POST(req: NextRequest) {
       });
     } catch {
       return unavailable('Pi identity service is temporarily unavailable.', 502);
+    }
+  }
+
+  if (action === 'payment_recover_incomplete') {
+    if (!body.paymentId || !/^[A-Za-z0-9_-]{6,160}$/.test(body.paymentId)) {
+      return NextResponse.json({ error: 'A valid paymentId is required.' }, { status: 400 });
+    }
+    try {
+      return await recoverIncompletePayment(body.paymentId);
+    } catch {
+      return unavailable('Pi incomplete-payment recovery or private ledger service is temporarily unavailable.', 502);
     }
   }
 
