@@ -245,7 +245,7 @@ async function recoverIncompletePayment(paymentId: string, expectedUserUid: stri
     if (!completion.ok) {
       return unavailable('Pi did not confirm server-side completion for the incomplete Testnet payment.', 502);
     }
-    readBack = await piRequest<PiPayment>(paymentPath);
+    readBack = await piRequest<PiPayment>(paymentPath, apiKey);
   }
 
   const verified =
@@ -480,7 +480,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const readBack = await piRequest<PiPayment>(paymentPath);
+      const readBack = await piRequest<PiPayment>(paymentPath, apiKey);
       const verified =
         readBack.ok &&
         validatePayment(readBack.data, user, body.planId) &&
