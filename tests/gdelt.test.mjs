@@ -2,9 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   GDELT_BROAD_QUERY,
+  GDELT_REFRESH_INTERVAL_SECONDS,
   classifyGdeltUpstreamError,
   parseGdeltResponse,
 } from '../lib/gdelt.mjs';
+
+test('uses a five-minute shared refresh interval to avoid upstream request bursts', () => {
+  assert.equal(GDELT_REFRESH_INTERVAL_SECONDS, 300);
+});
 
 test('groups the broad Boolean query and quotes multi-word terms', () => {
   assert.match(GDELT_BROAD_QUERY, /^\(.*\)$/);
