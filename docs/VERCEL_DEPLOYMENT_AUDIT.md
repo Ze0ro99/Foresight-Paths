@@ -54,3 +54,20 @@ Connected Vercel project metadata, latest deployment records, project-domain rec
 - Vercel deployments: https://vercel.com/docs/deployments
 - Vercel environment variables: https://vercel.com/docs/environment-variables
 - Pi Developer docs: https://developers.minepi.com/docs/
+
+
+## 2026-11-23 Preview runtime re-check
+
+This addendum is limited to the Preview branch and does not change or re-audit Production.
+
+- PR #10 current observed Git head at the time of the check: `b8acc22602222f95e6b423be46681c9697d96fc3`.
+- The most recent READY Preview available during this check was deployment `dpl_5G2MFiDWVGazi6Xoozg7WCnHru6V`, commit `70f46db6597efa7a6db9e7e0f71c66968a1e3014`. It contains the first incomplete-payment callback fix, but predates the subsequent approval/read-back hardening and compliance docs.
+- Live `GET /api/health` on that deployment returned HTTP 200 with `supabaseLedger=server_credentials_configured`, `piPayments=awaiting_server_key`, and `piPaymentExecutionEnabled=false`.
+- Live `GET /api/pi/verify` returned HTTP 200 with `ledgerConfigured=true`, `serverKeyConfigured=false`, `paymentEnabled=false`, and `missingRequirements=["PI_API_KEY"]`.
+- Therefore the runtime confirms the Supabase service-role value is present/non-empty according to the application's readiness check. The Vercel environment-variable listing was queried with `decrypt=false`; its blank rendered value for a sensitive variable is a redaction and is not evidence that the stored secret is empty.
+- `PI_API_KEY` is not configured in Preview and remains the known server-side credential blocker.
+- GitHub Actions run #78 is running against current head `b8acc22...`; installation, lint, unit tests and TypeScript have passed, while the production build was still running at this observation.
+- Vercel's commit check for the current head reports `build-rate-limit`; no deployment of `b8acc22...` has been confirmed. The READY deployment above must not be described as the current head.
+- Runtime error aggregation for the latest hour returned no errors on the READY Preview deployment. This does not establish the behavior of the not-yet-deployed latest head.
+
+No secrets were decrypted or written to source control. Pi payment execution remains disabled; paid entitlements and Mainnet approval remain false.

@@ -362,6 +362,7 @@ export default function FullScreenMapCanvas({
     forecasts,
     filteredSignals,
     filterMode,
+    copy.forecastTag,
     layers.live_events,
     layers.encrypted_maps,
     layers.global_sensors,

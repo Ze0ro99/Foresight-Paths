@@ -39,6 +39,8 @@ import FullScreenMapCanvas from './FullScreenMapCanvas';
 import ScenarioDetailDrawer from './ScenarioDetailDrawer';
 import BackendMechanicsModal, { BackendTab } from './BackendMechanicsModal';
 import AddEventModal from './AddEventModal';
+import LiveNewsPanel from './LiveNewsPanel';
+import TestnetReadinessPanel from './TestnetReadinessPanel';
 
 export default function ResearchWorkspace() {
   const [events, setEvents] = useState<LiveEvent[]>(() =>
@@ -57,6 +59,12 @@ export default function ResearchWorkspace() {
   const [locale, setLocale] = useState<AppLocale>('ar');
   const [globalSignals, setGlobalSignals] = useState<GlobalSensedSignal[]>([]);
   const [lastSenseUtc, setLastSenseUtc] = useState<string | null>(null);
+  const [senseCoverageNote, setSenseCoverageNote] = useState<string | null>(null);
+  const [senseSourceCounts, setSenseSourceCounts] = useState<{
+    usgsCount?: number;
+    eonetCount?: number;
+    osintCount?: number;
+  } | null>(null);
   const [isSensingNow, setIsSensingNow] = useState(false);
   const [autoSenseEnabled, setAutoSenseEnabled] = useState(true);
   const [qClockMinuteTick, setQClockMinuteTick] = useState(() =>
@@ -75,11 +83,15 @@ export default function ResearchWorkspace() {
       if (res.ok) {
         const data = (await res.json()) as {
           fetchedAtUtc: string;
+          coverageNote?: string;
+          sources?: { usgsCount?: number; eonetCount?: number; osintCount?: number };
           signals: GlobalSensedSignal[];
         };
         if (Array.isArray(data.signals)) {
           setGlobalSignals(data.signals);
           setLastSenseUtc(data.fetchedAtUtc);
+          setSenseCoverageNote(data.coverageNote ?? null);
+          setSenseSourceCounts(data.sources ?? null);
         }
       }
     } catch {
@@ -97,11 +109,15 @@ export default function ResearchWorkspace() {
         if (!res.ok) return;
         const data = (await res.json()) as {
           fetchedAtUtc: string;
+          coverageNote?: string;
+          sources?: { usgsCount?: number; eonetCount?: number; osintCount?: number };
           signals: GlobalSensedSignal[];
         };
         if (!cancelled && Array.isArray(data.signals)) {
           setGlobalSignals(data.signals);
           setLastSenseUtc(data.fetchedAtUtc);
+          setSenseCoverageNote(data.coverageNote ?? null);
+          setSenseSourceCounts(data.sources ?? null);
         }
       } catch {
         // ignore safely
@@ -120,11 +136,15 @@ export default function ResearchWorkspace() {
         if (!res.ok) return;
         const data = (await res.json()) as {
           fetchedAtUtc: string;
+          coverageNote?: string;
+          sources?: { usgsCount?: number; eonetCount?: number; osintCount?: number };
           signals: GlobalSensedSignal[];
         };
         if (Array.isArray(data.signals)) {
           setGlobalSignals(data.signals);
           setLastSenseUtc(data.fetchedAtUtc);
+          setSenseCoverageNote(data.coverageNote ?? null);
+          setSenseSourceCounts(data.sources ?? null);
         }
       } catch {
         // ignore safely
@@ -574,6 +594,28 @@ export default function ResearchWorkspace() {
         onOpenBackendMechanics={() => setIsBackendOpen(true)}
         onOpenAddEvent={() => setIsAddModalOpen(true)}
       />
+
+      {senseCoverageNote && (
+        <section
+          aria-label={locale === 'ar' ? 'تغطية مصادر الرصد' : 'Global signal source coverage'}
+          className="mx-4 mt-3 rounded-md border border-white/10 bg-white/[0.03] px-4 py-3 text-xs text-white/70 md:mx-6"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="font-semibold text-white/90">
+              {locale === 'ar' ? 'تغطية المصادر: جزئية' : 'Source coverage: partial'}
+            </p>
+            {senseSourceCounts && (
+              <p aria-live="polite" className="tabular-nums">
+                USGS {senseSourceCounts.usgsCount ?? 0} · NASA EONET {senseSourceCounts.eonetCount ?? 0}
+              </p>
+            )}
+          </div>
+          <p className="mt-1 leading-relaxed">{senseCoverageNote}</p>
+        </section>
+      )}
+
+      <LiveNewsPanel locale={locale} />
+      <TestnetReadinessPanel locale={locale} />
 
       {apiError && (
         <div

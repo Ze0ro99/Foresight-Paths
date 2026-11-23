@@ -24,6 +24,58 @@ interface EonetEvent {
   geometry?: { date: string; coordinates: [number, number] | number[][] }[];
 }
 
+
+async function persistHazards(
+  sourceKey: 'usgs-earthquakes' | 'nasa-eonet',
+  rows: Array<Record<string, unknown>>,
+): Promise<string> {
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!base || !key || key === 'YOUR_SUPABASE_SERVICE_ROLE_KEY') return 'not_configured';
+  if (rows.length === 0) return 'no_new_rows';
+
+  const headers = {
+    apikey: key,
+    Authorization: 'Bearer ' + key,
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+  };
+  try {
+    const claim = await fetch(`${base}/rest/v1/rpc/claim_source_refresh`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ p_source_key: sourceKey, p_min_interval_seconds: 90 }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!claim.ok) return 'unavailable';
+    if (!(await claim.json())) return 'rate_limited';
+
+    const response = await fetch(`${base}/rest/v1/rpc/ingest_hazard_batch`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ p_source_key: sourceKey, p_rows: rows }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!response.ok) return 'write_failed';
+    return `persisted:${await response.json() as number}`;
+  } catch {
+    return 'unavailable';
+  }
+}
+
+function classifyEonetHazard(title: string): string {
+  const value = title.toLowerCase();
+  if (/wildfire|fire/.test(value)) return 'wildfire';
+  if (/flood/.test(value)) return 'flood';
+  if (/storm|hurricane|cyclone|typhoon/.test(value)) return 'storm';
+  if (/volcano|volcanic/.test(value)) return 'volcano';
+  if (/tsunami/.test(value)) return 'tsunami';
+  if (/drought/.test(value)) return 'drought';
+  return 'other';
+}
+
 export async function GET() {
   const signals: GlobalSensedSignal[] = [];
   let usgsCount = 0;
@@ -147,8 +199,51 @@ export async function GET() {
 
   signals.sort((a, b) => a.ageHours - b.ageHours);
 
+  const observedAt = new Date().toISOString();
+  const usgsRows = signals
+    .filter((signal) => signal.source === 'USGS_Seismic')
+    .map((signal) => ({
+      external_id: signal.id.replace(/^usgs-/, ''),
+      hazard_type: 'earthquake',
+      title: signal.title,
+      description: null,
+      severity_label: signal.severityLabel,
+      magnitude: signal.magnitudeOrSeverity,
+      latitude: signal.lat,
+      longitude: signal.lng,
+      location_label: signal.locationName,
+      occurred_at: signal.publishedAtIso,
+      observed_at: observedAt,
+      source_url: signal.url || 'https://earthquake.usgs.gov/',
+      status: 'active',
+      properties: { provider: 'USGS', signal_category: signal.category },
+    }));
+  const eonetRows = signals
+    .filter((signal) => signal.source === 'NASA_EONET')
+    .map((signal) => ({
+      external_id: signal.id.replace(/^eonet-/, ''),
+      hazard_type: classifyEonetHazard(signal.title),
+      title: signal.title,
+      description: null,
+      severity_label: signal.severityLabel,
+      magnitude: null,
+      latitude: signal.lat,
+      longitude: signal.lng,
+      location_label: signal.locationName,
+      occurred_at: signal.publishedAtIso,
+      observed_at: observedAt,
+      source_url: signal.url || 'https://eonet.gsfc.nasa.gov/',
+      status: 'active',
+      properties: { provider: 'NASA EONET', geometry_is_event_location: true },
+    }));
+  const persistence = await Promise.all([
+    persistHazards('usgs-earthquakes', usgsRows),
+    persistHazards('nasa-eonet', eonetRows),
+  ]);
+
   return NextResponse.json({
-    fetchedAtUtc: new Date().toISOString(),
+    fetchedAtUtc: observedAt,
+    persistence: { usgs: persistence[0], nasaEonet: persistence[1] },
     coverage: 'partial',
     coverageNote:
       'Only source-attributed USGS and NASA EONET events are included. This endpoint is not a comprehensive global news feed; unavailable sources are not replaced with synthetic alerts. Records without valid source timestamps are omitted.',

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getPiGatewayReadiness } from '@/lib/pi-readiness.mjs';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,35 +8,34 @@ export async function GET() {
     process.env.GEMINI_API_KEY &&
     process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'
   );
-  const piServerKeyConfigured = Boolean(
-    process.env.PI_API_KEY &&
-    process.env.PI_API_KEY !== 'MY_PI_PLATFORM_SERVER_API_KEY'
-  );
-  const piSandboxMode = process.env.PI_SANDBOX_MODE !== 'false';
-  const piPaymentExecutionFlag = process.env.PI_PAYMENTS_ENABLED === 'true';
-  const piLedgerReleaseFlag = process.env.PI_ENTITLEMENT_LEDGER_ENABLED === 'true';
+  const piReadiness = getPiGatewayReadiness();
+  const piServerKeyConfigured = piReadiness.piApiKeyConfigured;
+  const supabaseLedgerConfigured = piReadiness.ledgerConfigured;
+  const piSandboxMode = piReadiness.sandboxMode;
+  const piPaymentExecutionFlag = piReadiness.paymentFlagEnabled;
+  const piIntentLedgerReady = piReadiness.paymentIntentLedgerReady;
+  const piEntitlementLedgerEnabled = process.env.PI_ENTITLEMENT_LEDGER_ENABLED === 'true';
   const piMainnetReleaseFlag = process.env.PI_MAINNET_PAYMENTS_APPROVED === 'true';
-  const piPaymentReleaseFlagsEnabled =
-    piPaymentExecutionFlag &&
-    piLedgerReleaseFlag &&
-    (piSandboxMode || piMainnetReleaseFlag);
-  const piPaymentExecutionEnabled =
-    piServerKeyConfigured && piPaymentReleaseFlagsEnabled;
+  const piPaymentReleaseFlagsEnabled = piReadiness.releaseFlagsEnabled;
+  const piPaymentExecutionEnabled = piReadiness.paymentEnabled;
 
   const checks = {
     application: 'ok',
     globalSense: 'available_with_partial_source_coverage',
     geminiAnalysis: geminiConfigured ? 'configured' : 'not_configured',
     piIdentity: 'requires_pi_browser_session',
-    piPayments: !piServerKeyConfigured
-      ? 'not_configured'
-      : piPaymentExecutionEnabled
-        ? 'release_flags_enabled_runtime_verification_required'
-        : 'payments_disabled_pending_release_gates',
+    paymentIntentLedger: piIntentLedgerReady ? 'ready_flag_set' : 'disabled',
+    paidEntitlements: piEntitlementLedgerEnabled ? 'enabled_flag_set_but_not_implemented' : 'disabled',
+    supabaseLedger: supabaseLedgerConfigured
+      ? 'server_credentials_configured'
+      : 'read_only_data_only_private_ledger_key_missing',
+    piPayments: piReadiness.status,
+    piPaymentMissingRequirements: piReadiness.missingRequirements,
     piPaymentExecutionEnabled,
     piPaymentReleaseFlags: {
       paymentExecution: piPaymentExecutionFlag,
-      entitlementLedger: piLedgerReleaseFlag,
+      paymentIntentLedgerReady: piIntentLedgerReady,
+      entitlementDelivery: piEntitlementLedgerEnabled,
       mainnetApproval: piMainnetReleaseFlag,
     },
     piSandboxMode,
@@ -44,9 +44,7 @@ export async function GET() {
     rewardedAds: 'disabled_until_provider_verification',
   };
 
-  const ready =
-    geminiConfigured &&
-    piServerKeyConfigured;
+  const ready = geminiConfigured && piServerKeyConfigured;
 
   return NextResponse.json(
     {
