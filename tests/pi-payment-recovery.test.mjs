@@ -17,7 +17,7 @@ function payment(overrides = {}) {
 }
 
 test('accepts an app-scoped submitted Pi Testnet U2A payment returned by Pi', () => {
-  assert.deepEqual(getRecoverableTestnetPayment(payment(), 'pi_payment_123456'), {
+  assert.deepEqual(getRecoverableTestnetPayment(payment(), 'pi_payment_123456', 'app-user-uid'), {
     paymentId: 'pi_payment_123456',
     userUid: 'app-user-uid',
     planId: 'testnet_payment_0_1_demo',
@@ -29,22 +29,32 @@ test('accepts an app-scoped submitted Pi Testnet U2A payment returned by Pi', ()
 
 test('rejects a different payment id or network', () => {
   assert.equal(getRecoverableTestnetPayment(payment(), 'another-payment'), null);
-  assert.equal(getRecoverableTestnetPayment(payment({ network: 'Pi Network' }), 'pi_payment_123456'), null);
+  assert.equal(getRecoverableTestnetPayment(payment({ network: 'Pi Network' }), 'pi_payment_123456', 'app-user-uid'), null);
 });
 
 test('rejects wrong direction, app metadata, plan, or server-known amount', () => {
-  assert.equal(getRecoverableTestnetPayment(payment({ direction: 'app_to_user' }), 'pi_payment_123456'), null);
-  assert.equal(getRecoverableTestnetPayment(payment({ metadata: { planId: 'testnet_payment_0_1_demo', app: 'other-app', network: 'Pi Testnet' } }), 'pi_payment_123456'), null);
-  assert.equal(getRecoverableTestnetPayment(payment({ amount: 1 }), 'pi_payment_123456'), null);
-  assert.equal(getRecoverableTestnetPayment(payment({ metadata: { planId: 'unrecognized', app: 'foresight-paths', network: 'Pi Testnet' } }), 'pi_payment_123456'), null);
+  assert.equal(getRecoverableTestnetPayment(payment({ direction: 'app_to_user' }), 'pi_payment_123456', 'app-user-uid'), null);
+  assert.equal(getRecoverableTestnetPayment(payment({ metadata: { planId: 'testnet_payment_0_1_demo', app: 'other-app', network: 'Pi Testnet' } }), 'pi_payment_123456', 'app-user-uid'), null);
+  assert.equal(getRecoverableTestnetPayment(payment({ amount: 1 }), 'pi_payment_123456', 'app-user-uid'), null);
+  assert.equal(getRecoverableTestnetPayment(payment({ metadata: { planId: 'unrecognized', app: 'foresight-paths', network: 'Pi Testnet' } }), 'pi_payment_123456', 'app-user-uid'), null);
 });
 
 test('allows an unapproved but submitted payment so the server can approve it during recovery', () => {
-  const result = getRecoverableTestnetPayment(payment({ status: { developer_approved: false } }), 'pi_payment_123456');
+  const result = getRecoverableTestnetPayment(payment({ status: { developer_approved: false } }), 'pi_payment_123456', 'app-user-uid');
   assert.equal(result?.developerApproved, false);
 });
 
 test('rejects cancelled or unsubmitted payments', () => {
-  assert.equal(getRecoverableTestnetPayment(payment({ status: { developer_approved: true, cancelled: true } }), 'pi_payment_123456'), null);
-  assert.equal(getRecoverableTestnetPayment(payment({ transaction: null }), 'pi_payment_123456'), null);
+  assert.equal(getRecoverableTestnetPayment(payment({ status: { developer_approved: true, cancelled: true } }), 'pi_payment_123456', 'app-user-uid'), null);
+  assert.equal(getRecoverableTestnetPayment(payment({ transaction: null }), 'pi_payment_123456', 'app-user-uid'), null);
+});
+
+
+test('rejects recovery when the Pi payment belongs to a different authenticated Pioneer', () => {
+  assert.equal(getRecoverableTestnetPayment(payment(), 'pi_payment_123456', 'another-pioneer-uid'), null);
+});
+
+test('requires an authenticated Pioneer UID when validating recovery', () => {
+  assert.equal(getRecoverableTestnetPayment(payment(), 'pi_payment_123456'), null);
+  assert.equal(getRecoverableTestnetPayment(payment(), 'pi_payment_123456', '  '), null);
 });

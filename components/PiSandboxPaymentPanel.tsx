@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type PiPaymentDto = {
   identifier?: string;
@@ -21,7 +21,7 @@ type PiSdk = NonNullable<Window['Pi']> & {
   ) => void;
 };
 
-type GatewayStatus = { paymentEnabled?: boolean; status?: string; sandboxMode?: boolean; missingRequirements?: string[] };
+type GatewayStatus = { paymentEnabled?: boolean; status?: string; sandboxMode?: boolean; ledgerConfigured?: boolean; missingRequirements?: string[] };
 
 export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
   const ar = locale === 'ar';
@@ -30,9 +30,11 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
   const [accessToken, setAccessToken] = useState('');
   const [username, setUsername] = useState('');
   const [paymentEnabled, setPaymentEnabled] = useState(false);
+  const [ledgerConfigured, setLedgerConfigured] = useState(false);
   const [gatewayStatus, setGatewayStatus] = useState('checking');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const incompletePaymentRef = useRef<PiPaymentDto | null>(null);
   const [recoveryPending, setRecoveryPending] = useState(false);
   const [recoveryBlocked, setRecoveryBlocked] = useState(false);
 
@@ -41,9 +43,11 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
       const response = await fetch('/api/pi/verify', { cache: 'no-store' });
       const data = (await response.json()) as GatewayStatus;
       setPaymentEnabled(data.paymentEnabled === true);
+      setLedgerConfigured(data.ledgerConfigured === true);
       setGatewayStatus(data.status ?? 'unknown');
     } catch {
       setPaymentEnabled(false);
+      setLedgerConfigured(false);
       setGatewayStatus('unavailable');
     }
   }, []);
@@ -78,42 +82,21 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
   }, [ar, refreshGateway]);
 
   const handleIncompletePaymentFound = useCallback((payment: unknown) => {
+    // Pi calls this before authenticate() resolves. Queue the DTO only; recovery
+    // must wait for the verified Pioneer Bearer token.
     const incompletePayment = payment as PiPaymentDto;
-    const paymentId = incompletePayment?.identifier;
+    incompletePaymentRef.current = incompletePayment;
+    const hasPaymentId = typeof incompletePayment?.identifier === 'string' &&
+      /^[A-Za-z0-9_-]{6,160}$/.test(incompletePayment.identifier);
     setRecoveryBlocked(true);
-    if (!paymentId) {
-      setRecoveryPending(false);
-      setMessage(ar
-        ? 'وجد Pi دفعة غير مكتملة دون معرّف صالح؛ أوقفنا الدفع الجديد لحين المراجعة.'
-        : 'Pi found an incomplete payment without a valid identifier. New payments are blocked pending review.');
-      return;
-    }
-
-    // Pi invokes this callback before authenticate() resolves, so no access token is available here.
-    // The server retrieves the payment by ID with the app-scoped Server API Key and validates it.
-    setRecoveryPending(true);
-    setMessage(ar ? 'جارٍ استعادة الدفعة السابقة والتحقق منها مباشرة عبر خادم Pi…' : 'Recovering the previous payment directly from Pi before allowing a new one…');
-    void fetch('/api/pi/verify', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'payment_recover_incomplete', paymentId }),
-    }).then(async (response) => {
-      const result = await response.json();
-      if (response.ok && result.verified === true) {
-        setRecoveryBlocked(false);
-        setMessage(ar
-          ? 'تمت استعادة الدفعة السابقة والتحقق منها على Testnet. لا توجد ميزة أو أرصدة مدفوعة ممنوحة.'
-          : 'The previous Testnet payment was recovered and verified. No paid entitlement or credit was granted.');
-      } else {
-        setRecoveryBlocked(true);
-        setMessage(result.error || (ar ? 'تعذرت استعادة الدفعة؛ تم إيقاف بدء دفعة جديدة لحين المراجعة.' : 'Payment recovery failed. New payments remain blocked pending review.'));
-      }
-      setRecoveryPending(false);
-    }).catch(() => {
-      setRecoveryBlocked(true);
-      setRecoveryPending(false);
-      setMessage(ar ? 'تعذر الاتصال بخدمة استعادة الدفعة؛ يظل بدء دفعة جديدة محظورًا.' : 'Could not reach the payment recovery service. New payments remain blocked.');
-    });
+    setRecoveryPending(hasPaymentId);
+    setMessage(hasPaymentId
+      ? (ar
+          ? 'وجد Pi دفعة غير مكتملة؛ نتحقق من هوية صاحبها أولًا قبل استعادتها.'
+          : 'Pi found an incomplete payment. Verifying its owner before recovery.')
+      : (ar
+          ? 'وجد Pi دفعة غير مكتملة دون معرّف صالح؛ أوقفنا الدفع الجديد لحين المراجعة.'
+          : 'Pi found an incomplete payment without a valid identifier. New payments are blocked pending review.'));
   }, [ar]);
 
   const signIn = async () => {
@@ -134,9 +117,57 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
       if (!response.ok || !result.verified) throw new Error(result.error || 'Pi identity verification failed.');
       setAccessToken(auth.accessToken);
       setUsername(result.user?.username || auth.user.username || result.user?.uid || auth.user.uid || '');
-      setMessage(ar ? 'تم التحقق من هوية Pi عبر الخادم.' : 'Pi identity was verified by the backend.');
+
+      // The SDK callback runs before this promise resolves. Now the Pioneer token
+      // is verified, so recovery can be bound to the payment's user_uid.
+      const incompletePayment = incompletePaymentRef.current;
+      if (incompletePayment) {
+        const paymentId = incompletePayment.identifier;
+        if (!paymentId || !/^[A-Za-z0-9_-]{6,160}$/.test(paymentId)) {
+          setRecoveryBlocked(true);
+          setRecoveryPending(false);
+          setMessage(ar
+            ? 'توجد دفعة غير مكتملة دون معرّف صالح؛ لا تبدأ دفعة جديدة قبل المراجعة.'
+            : 'An incomplete payment has no valid identifier. Do not start another payment before manual review.');
+        } else {
+          setRecoveryBlocked(true);
+          setRecoveryPending(true);
+          try {
+            const recoveryResponse = await fetch('/api/pi/verify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${auth.accessToken}`,
+              },
+              body: JSON.stringify({ action: 'payment_recover_incomplete', paymentId }),
+            });
+            const recoveryResult = await recoveryResponse.json();
+            if (!recoveryResponse.ok || recoveryResult.verified !== true) {
+              throw new Error(recoveryResult.error || 'Incomplete payment recovery failed.');
+            }
+            incompletePaymentRef.current = null;
+            setRecoveryBlocked(false);
+            setMessage(ar
+              ? 'تمت استعادة الدفعة السابقة والتحقق منها على Testnet. لا توجد أرصدة أو مزايا مدفوعة ممنوحة.'
+              : 'The previous Testnet payment was recovered and verified. No paid entitlement or credit was granted.');
+          } catch (recoveryError) {
+            setRecoveryBlocked(true);
+            setMessage(recoveryError instanceof Error
+              ? recoveryError.message
+              : (ar ? 'تعذرت استعادة الدفعة؛ يلزم التحقق اليدوي.' : 'Payment recovery needs manual review.'));
+          } finally {
+            setRecoveryPending(false);
+          }
+        }
+      } else {
+        setMessage(ar ? 'تم التحقق من هوية Pi عبر الخادم.' : 'Pi identity was verified by the backend.');
+      }
       await refreshGateway();
     } catch (error) {
+      if (incompletePaymentRef.current) {
+        setRecoveryBlocked(true);
+        setRecoveryPending(false);
+      }
       setMessage(error instanceof Error ? error.message : (ar ? 'فشل تسجيل الدخول.' : 'Pi sign-in failed.'));
     } finally {
       setBusy(false);
@@ -233,7 +264,17 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
       )}
       {accessToken && !paymentEnabled && (
         <p className="mt-2 text-[10px] text-white/45">
-          {ar ? 'الدفع معطّل حتى إدخال مفتاح Pi Testnet ومفتاح Supabase الخادمي وتفعيل بوابات Preview بعد المراجعة.' : 'Payments remain disabled until the Pi Testnet key, server-only Supabase key, and reviewed Preview release gates are configured.'}
+          {gatewayStatus === 'awaiting_server_key' && ledgerConfigured
+            ? (ar
+                ? 'دفتر Supabase الخاص متصل. أضف مفتاح Server API لتطبيق Pi Testnet باسم PI_API_KEY في إعدادات Vercel Preview؛ لا تضعه في الواجهة أو المستودع.'
+                : 'The private Supabase ledger is connected. Add the Testnet app Server API Key as PI_API_KEY in Vercel Preview; never expose it in client code or source control.')
+            : gatewayStatus === 'awaiting_private_ledger_credentials'
+              ? (ar
+                  ? 'بيانات اعتماد دفتر Supabase الخاص غير مكتملة؛ يلزم ضبط المفتاح الخادمي قبل تشغيل الدفع.'
+                  : 'Private Supabase ledger credentials are incomplete; configure the server-only key before enabling payments.')
+              : (ar
+                  ? 'الدفع ما زال معطّلًا حتى اجتياز بوابات Preview والتحقق الكامل من تدفق Pi Sandbox/Testnet.'
+                  : 'Payments remain disabled until the Preview release gates and full Pi Sandbox/Testnet flow are verified.')}
         </p>
       )}
       {recoveryPending && <p role="status" className="mt-2 text-[10px] text-amber-200">{ar ? 'استعادة الدفعة السابقة جارية؛ لن نبدأ دفعة جديدة الآن.' : 'Previous payment recovery is in progress; a new payment is blocked.'}</p>}

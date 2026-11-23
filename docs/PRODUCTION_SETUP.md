@@ -26,7 +26,7 @@ After changing variables, redeploy the relevant environment. Never commit real c
 
 The backend uses the official Pi Platform API v2:
 - Verify the user access token with `GET /me`.
-- Retrieve the payment record before approval/completion. For the SDK's `onIncompletePaymentFound` callback, which runs before `Pi.authenticate()` resolves, recovery must not wait for a user access token; the backend retrieves the payment using its app-scoped Server API Key and validates app, network, user, plan, amount, and transaction fields before completion.
+- Retrieve the payment record before approval/completion. The SDK's `onIncompletePaymentFound` callback runs before `Pi.authenticate()` resolves, so the client must queue the callback DTO and block new payments. Once authentication resolves, it sends the verified Pioneer Bearer token with the payment ID. The backend verifies the token through `/v2/me`, retrieves the app-scoped payment with the Server API Key, and requires `payment.user_uid` to match the authenticated Pioneer before recovery.
 - Check the server-known plan amount, payment owner UID, and plan metadata.
 - Approve only a matching payment.
 - Complete with the transaction ID supplied by the Pi SDK.
@@ -36,7 +36,17 @@ The backend uses the official Pi Platform API v2:
 
 Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, the isolated Foresight Supabase URL, `PI_PAYMENTS_ENABLED=true`, and `PI_PAYMENT_INTENT_LEDGER_READY=true` are all configured in Preview. The Preview release flags are prepared for Testnet, but `PI_API_KEY` is absent. The `SUPABASE_SERVICE_ROLE_KEY` variable is sensitive and cannot be evaluated from its masked environment-variable listing, but the live Preview readiness endpoints report the private ledger credential as configured. Pi payment and recovery remain unavailable until the Testnet `PI_API_KEY` is added directly in Vercel Preview and an end-to-end Sandbox flow passes. `PI_ENTITLEMENT_LEDGER_ENABLED` remains false: a verified test payment is recorded, but no prepaid balance or paid feature is granted. The Pi route is hard-locked to Sandbox/Testnet and rejects Mainnet payments. A future Mainnet release requires a separately registered Mainnet Pi app, independent security review, completed entitlements/refunds, and the owner's explicit approval; it is not enabled by this route. The Pi Developer Portal locks an app to the network chosen at registration, so a Testnet app cannot be switched to Mainnet. Rewarded ads remain disabled until a trusted provider callback is integrated and verified server-side.
 
-## 3. Current capability status
+
+## 3. Pi Developer Portal: Testnet/Sandbox setup
+
+1. Register or select a **Testnet app** in the Pi Developer Portal from Pi Browser. Pi locks an app to its registered network; Mainnet requires a separate app and is not enabled here.
+2. Configure the Testnet app's Development URL and use the Sandbox URL provided by the Portal. Authorize the Sandbox app from Pi Utilities in the Pi app when prompted.
+3. The site loads `https://sdk.minepi.com/pi-sdk.js` and initializes SDK v2 with `sandbox: true`. The UI requests `username` and `payments` scopes.
+4. Copy the Server API Key for that **Testnet app** to Vercel Project → Settings → Environment Variables as a sensitive, server-only `PI_API_KEY` scoped to Preview and branch `fix/ci-clean-base`. Never set a `NEXT_PUBLIC_` prefix or put the key into chat/source control.
+5. The current Vercel project protects Preview deployments with Vercel Authentication. Pi Browser access to the protected Preview is not verified; do not disable SSO to make the test pass. Use an explicitly approved public HTTPS Testnet URL for the Portal's Development URL before running Pi Browser end-to-end tests.
+6. Test only the labelled 0.1 and 1 Test-Pi demo plans. The backend verifies Pioneer identity, payment owner, plan, amount, Testnet network, approval, transaction completion, read-back, and private intent state. No paid credits or entitlements are delivered.
+
+## 4. Current capability status
 
 | Capability | Status |
 | --- | --- |
@@ -51,7 +61,7 @@ Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_S
 | Rewarded-ad grants | Disabled; no verified provider callback |
 | Cloud-agent execution | Disabled pending telemetry validation, calibrated scoring, and independent settlement verification |
 
-## 4. Smoke checks
+## 5. Smoke checks
 
 After deployment:
 - `GET /` should return HTTP 200 and render Arabic RTL.
@@ -60,7 +70,7 @@ After deployment:
 - `GET /api/pi/verify` should report sandbox mode and whether the server key is configured, without exposing secrets.
 - `GET /api/x402/mcp` should expose discovery only; paid execution remains disabled.
 
-## 5. Security and release gates
+## 6. Security and release gates
 
 - Keep Preview protected; only Production is public.
 - Keep API keys server-side.

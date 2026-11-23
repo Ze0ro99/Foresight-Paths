@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPiGatewayReadiness } from '@/lib/pi-readiness.mjs';
 import { AUTHORITATIVE_PLAN_PRICES_PI, getRecoverableTestnetPayment } from '@/lib/pi-payment.mjs';
 
+export const dynamic = 'force-dynamic';
+
 const PI_API_BASE = 'https://api.minepi.com/v2';
 type PiUser = { uid?: string; username?: string };
 type PiPayment = {
@@ -156,7 +158,7 @@ function isPaymentReleaseEnabled() {
   return getPiGatewayReadiness().paymentEnabled;
 }
 
-async function recoverIncompletePayment(paymentId: string) {
+async function recoverIncompletePayment(paymentId: string, expectedUserUid: string) {
   if (!isPaymentReleaseEnabled()) {
     return unavailable('Pi Testnet payment recovery is disabled until the server key, private ledger credentials, and Preview release gates are configured.');
   }
@@ -168,7 +170,7 @@ async function recoverIncompletePayment(paymentId: string) {
   if (!before.ok || !before.data) {
     return unavailable('Pi could not retrieve the incomplete payment from this app account.', 502);
   }
-  const recovered = getRecoverableTestnetPayment(before.data, paymentId);
+  const recovered = getRecoverableTestnetPayment(before.data, paymentId, expectedUserUid);
   if (!recovered) {
     return unavailable('The Pi payment does not match this app, a server-priced Testnet plan, or a submitted Testnet U2A transaction.', 409);
   }
@@ -304,7 +306,7 @@ export async function GET() {
     paymentEnabled: readiness.paymentEnabled,
     plans: AUTHORITATIVE_PLAN_PRICES_PI,
     note: 'Only Testnet/Sandbox is accepted by this gateway. A successful settlement is persisted, but no paid entitlement is granted by this route.',
-  });
+  }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
 export async function POST(req: NextRequest) {
@@ -343,10 +345,13 @@ export async function POST(req: NextRequest) {
     if (!body.paymentId || !/^[A-Za-z0-9_-]{6,160}$/.test(body.paymentId)) {
       return NextResponse.json({ error: 'A valid paymentId is required.' }, { status: 400 });
     }
+    if (!accessToken) return unavailable('A verified Pi user session is required for payment recovery.', 401);
     try {
-      return await recoverIncompletePayment(body.paymentId);
+      const user = await verifyUser(accessToken);
+      if (!user?.uid) return unavailable('Pi identity verification failed.', 401);
+      return await recoverIncompletePayment(body.paymentId, user.uid);
     } catch {
-      return unavailable('Pi incomplete-payment recovery or private ledger service is temporarily unavailable.', 502);
+      return unavailable('Pi identity, incomplete-payment recovery, or private ledger service is temporarily unavailable.', 502);
     }
   }
 
