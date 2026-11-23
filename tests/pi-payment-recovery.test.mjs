@@ -22,6 +22,7 @@ test('accepts only the app-scoped approved Pi Testnet U2A payment returned by Pi
     userUid: 'app-user-uid',
     planId: 'testnet_payment_0_1_demo',
     amountPi: '0.1',
+    developerApproved: true,
     txid: 'testnet-tx-abc',
   });
 });
@@ -38,8 +39,12 @@ test('rejects wrong direction, app metadata, plan, or server-known amount', () =
   assert.equal(getRecoverableTestnetPayment(payment({ metadata: { planId: 'unrecognized', app: 'foresight-paths', network: 'Pi Testnet' } }), 'pi_payment_123456'), null);
 });
 
-test('rejects unapproved, cancelled, or unsubmitted payments', () => {
-  assert.equal(getRecoverableTestnetPayment(payment({ status: { developer_approved: false } }), 'pi_payment_123456'), null);
+test('allows an unapproved but submitted payment so the server can approve it during recovery', () => {
+  const result = getRecoverableTestnetPayment(payment({ status: { developer_approved: false } }), 'pi_payment_123456');
+  assert.equal(result?.developerApproved, false);
+});
+
+test('rejects cancelled or unsubmitted payments', () => {
   assert.equal(getRecoverableTestnetPayment(payment({ status: { developer_approved: true, cancelled: true } }), 'pi_payment_123456'), null);
   assert.equal(getRecoverableTestnetPayment(payment({ transaction: null }), 'pi_payment_123456'), null);
 });
