@@ -21,10 +21,18 @@ type PiSdk = NonNullable<Window['Pi']> & {
   ) => void;
 };
 
-type GatewayStatus = { paymentEnabled?: boolean; status?: string; sandboxMode?: boolean; ledgerConfigured?: boolean; missingRequirements?: string[] };
+type GatewayStatus = {
+  paymentEnabled?: boolean;
+  status?: string;
+  sandboxMode?: boolean;
+  network?: string;
+  ledgerConfigured?: boolean;
+  missingRequirements?: string[];
+};
 
 export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
   const ar = locale === 'ar';
+  const sdkSandboxMode = process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false';
   const [sdkReady, setSdkReady] = useState(false);
   const [sdkError, setSdkError] = useState('');
   const [accessToken, setAccessToken] = useState('');
@@ -65,12 +73,16 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
         return;
       }
       window.clearInterval(timer);
-      void Promise.resolve(window.Pi.init({ version: '2.0', sandbox: true }))
+      void Promise.resolve(window.Pi.init({ version: '2.0', sandbox: sdkSandboxMode }))
         .then(() => {
           if (active) setSdkReady(true);
         })
         .catch(() => {
-          if (active) setSdkError(ar ? 'تعذر تهيئة Pi SDK في وضع Sandbox.' : 'Pi SDK Sandbox initialization failed.');
+          if (active) setSdkError(
+            sdkSandboxMode
+              ? (ar ? 'تعذر تهيئة Pi SDK في وضع Sandbox.' : 'Pi SDK Sandbox initialization failed.')
+              : (ar ? 'تعذر تهيئة Pi SDK مباشرة على Testnet.' : 'Direct Pi SDK Testnet initialization failed.')
+          );
         });
     }, 250);
     const firstStatus = window.setTimeout(() => void refreshGateway(), 0);
@@ -79,11 +91,9 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
       window.clearInterval(timer);
       window.clearTimeout(firstStatus);
     };
-  }, [ar, refreshGateway]);
+  }, [ar, refreshGateway, sdkSandboxMode]);
 
   const handleIncompletePaymentFound = useCallback((payment: unknown) => {
-    // Pi calls this before authenticate() resolves. Queue the DTO only; recovery
-    // must wait for the verified Pioneer Bearer token.
     const incompletePayment = payment as PiPaymentDto;
     incompletePaymentRef.current = incompletePayment;
     const hasPaymentId = typeof incompletePayment?.identifier === 'string' &&
@@ -118,8 +128,6 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
       setAccessToken(auth.accessToken);
       setUsername(result.user?.username || auth.user.username || result.user?.uid || auth.user.uid || '');
 
-      // The SDK callback runs before this promise resolves. Now the Pioneer token
-      // is verified, so recovery can be bound to the payment's user_uid.
       const incompletePayment = incompletePaymentRef.current;
       if (incompletePayment) {
         const paymentId = incompletePayment.identifier;
@@ -135,10 +143,7 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
           try {
             const recoveryResponse = await fetch('/api/pi/verify', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${auth.accessToken}`,
-              },
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.accessToken}` },
               body: JSON.stringify({ action: 'payment_recover_incomplete', paymentId }),
             });
             const recoveryResult = await recoveryResponse.json();
@@ -178,9 +183,7 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
     const pi = window.Pi as PiSdk | undefined;
     if (!pi || !accessToken || !paymentEnabled || recoveryPending || recoveryBlocked) return;
     const amount = planId === 'testnet_payment_0_1_demo' ? 0.1 : 1;
-    const memo = planId === 'testnet_payment_0_1_demo'
-      ? 'Foresight Paths Testnet payment demo — no entitlement'
-      : 'Foresight Paths Testnet payment demo — no entitlement';
+    const memo = 'Foresight Paths Testnet payment demo — no entitlement';
     setBusy(true);
     setMessage(ar ? 'تم فتح تدفق دفع Testnet. أكمل التوقيع في محفظة Pi.' : 'Testnet payment flow opened. Confirm it in Pi Wallet.');
     try {
@@ -232,7 +235,9 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
         <div>
           <h3 className="text-xs font-semibold text-white">{ar ? 'مصادقة Pi وتجربة Testnet' : 'Pi authentication & Testnet checkout'}</h3>
           <p className="mt-1 text-[10px] text-white/45">
-            {ar ? 'Sandbox ثابت · لا توجد عمليات Mainnet' : 'Sandbox-only · no Mainnet operations'}
+            {sdkSandboxMode
+              ? (ar ? 'Pi Testnet عبر Sandbox · لا توجد عمليات Mainnet' : 'Pi Testnet via Sandbox · no Mainnet operations')
+              : (ar ? 'Pi Testnet مباشر · Sandbox معطّل · لا توجد عمليات Mainnet' : 'Direct Pi Testnet · Sandbox disabled · no Mainnet operations')}
           </p>
         </div>
         <span className="text-[10px] text-white/50">
@@ -273,8 +278,8 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
                   ? 'بيانات اعتماد دفتر Supabase الخاص غير مكتملة؛ يلزم ضبط المفتاح الخادمي قبل تشغيل الدفع.'
                   : 'Private Supabase ledger credentials are incomplete; configure the server-only key before enabling payments.')
               : (ar
-                  ? 'الدفع ما زال معطّلًا حتى اجتياز بوابات Preview والتحقق الكامل من تدفق Pi Sandbox/Testnet.'
-                  : 'Payments remain disabled until the Preview release gates and full Pi Sandbox/Testnet flow are verified.')}
+                  ? 'الدفع ما زال معطّلًا حتى اجتياز بوابات شبكة Testnet ومفاتيح الخادم والتحقق الكامل.'
+                  : 'Payments remain disabled until Testnet network, server credentials, and verification gates pass.')}
         </p>
       )}
       {recoveryPending && <p role="status" className="mt-2 text-[10px] text-amber-200">{ar ? 'استعادة الدفعة السابقة جارية؛ لن نبدأ دفعة جديدة الآن.' : 'Previous payment recovery is in progress; a new payment is blocked.'}</p>}
