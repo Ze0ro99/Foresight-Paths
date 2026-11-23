@@ -127,7 +127,8 @@ async function loadPersistedNews(): Promise<NewsItem[]> {
       if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) return [];
       const observedMs = Date.parse(row.observed_at);
       if (!Number.isFinite(observedMs) || observedMs > Date.now() + 300000) return [];
-      const category = Object.prototype.hasOwnProperty.call(labels, row.category)
+      const category = typeof row.category === 'string' &&
+        Object.prototype.hasOwnProperty.call(labels, row.category)
         ? row.category as Category
         : 'other';
       return [{
