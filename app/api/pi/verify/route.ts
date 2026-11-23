@@ -160,7 +160,7 @@ function isPaymentReleaseEnabled() {
 
 async function recoverIncompletePayment(paymentId: string, expectedUserUid: string) {
   if (!isPaymentReleaseEnabled()) {
-    return unavailable('Pi Testnet payment recovery is disabled until the server key, private ledger credentials, and Preview release gates are configured.');
+    return unavailable('Pi Testnet payment recovery is disabled until the Testnet server key, private ledger credentials, and explicit release gates are configured.');
   }
   const apiKey = process.env.PI_API_KEY?.trim();
   if (!apiKey) return unavailable('Testnet Server API Key is not configured.');
@@ -245,7 +245,7 @@ async function recoverIncompletePayment(paymentId: string, expectedUserUid: stri
     if (!completion.ok) {
       return unavailable('Pi did not confirm server-side completion for the incomplete Testnet payment.', 502);
     }
-    readBack = await piRequest<PiPayment>(paymentPath, apiKey);
+    readBack = await piRequest<PiPayment>(paymentPath);
   }
 
   const verified =
@@ -294,7 +294,9 @@ export async function GET() {
   return NextResponse.json({
     service: 'Pi verification gateway',
     status: readiness.status,
+    network: readiness.network,
     sandboxMode: readiness.sandboxMode,
+    directTestnetEnabled: readiness.directTestnetEnabled,
     serverKeyConfigured: readiness.piApiKeyConfigured,
     ledgerConfigured: readiness.ledgerConfigured,
     paymentIntentLedgerReady: readiness.paymentIntentLedgerReady,
@@ -302,10 +304,10 @@ export async function GET() {
     entitlementDeliveryEnabled: false,
     paymentFlow: readiness.paymentEnabled
       ? 'testnet_server_verified_approval_and_completion_with_durable_intent_only'
-      : 'disabled_until_testnet_credentials_and_release_gates_pass',
+      : 'disabled_until_explicit_testnet_network_credentials_and_release_gates_pass',
     paymentEnabled: readiness.paymentEnabled,
     plans: AUTHORITATIVE_PLAN_PRICES_PI,
-    note: 'Only Testnet/Sandbox is accepted by this gateway. A successful settlement is persisted, but no paid entitlement is granted by this route.',
+    note: 'This gateway accepts Pi Testnet only. SDK Sandbox is an independent client setting; disabling Sandbox does not change the app network. Mainnet is not accepted and no paid entitlement is granted.',
   }, { headers: { 'Cache-Control': 'no-store' } });
 }
 
@@ -358,10 +360,10 @@ export async function POST(req: NextRequest) {
   if (action === 'payment_approve' || action === 'payment_complete') {
     if (!isPaymentReleaseEnabled()) {
       return unavailable(
-        'Pi Testnet payment processing is disabled until PI_API_KEY, the private Supabase ledger, and explicit Preview release flags are configured.'
+        'Pi Testnet payment processing is disabled until PI_NETWORK=Pi Testnet, PI_API_KEY, the private Supabase ledger, and explicit Preview release flags are configured.'
       );
     }
-    const apiKey = process.env.PI_API_KEY;
+    const apiKey = process.env.PI_API_KEY?.trim();
     if (!apiKey || apiKey === 'MY_PI_PLATFORM_SERVER_API_KEY') {
       return unavailable('Testnet Server API Key is not configured.');
     }
@@ -478,7 +480,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const readBack = await piRequest<PiPayment>(paymentPath, apiKey);
+      const readBack = await piRequest<PiPayment>(paymentPath);
       const verified =
         readBack.ok &&
         validatePayment(readBack.data, user, body.planId) &&
