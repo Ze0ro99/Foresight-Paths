@@ -145,6 +145,8 @@ function validatePayment(
     Number.isFinite(payment.amount) &&
     Number(payment.amount.toFixed(7)) === expectedAmount &&
     payment.metadata?.planId === planId &&
+    payment.metadata?.app === 'foresight-paths' &&
+    payment.metadata?.network === 'Pi Testnet' &&
     payment.status?.cancelled !== true &&
     payment.status?.user_cancelled !== true
   );
@@ -198,6 +200,14 @@ async function recoverIncompletePayment(paymentId: string) {
 
   let intent = created;
   if (intent.status === 'created') {
+    if (!recovered.developerApproved) {
+      const approval = await piRequest<PiPayment>(paymentPath + '/approve', apiKey, {
+        method: 'POST',
+      });
+      if (!approval.ok || !approval.data?.status?.developer_approved) {
+        return unavailable('Pi did not confirm server-side approval for the incomplete Testnet payment.', 502);
+      }
+    }
     const approved = await syncPaymentIntent({
       paymentId,
       userUid: recovered.userUid,
