@@ -14,11 +14,11 @@ Status: **living engineering record**. A checked item requires code, tests, and 
 
 | Workstream | Current evidence | Required before marking complete |
 |---|---|---|
-| Global news | GDELT DOC 2.0 route and eight-category panel exist on the review branch; refresh interval is two minutes; original publisher links and partial-coverage notice are displayed. | Add independent source adapters, provider health tests, category-level fixtures, deduplication tests, and monitored rate-limit/failure behavior. GDELT is not exhaustive or guaranteed instant. |
+| Global news | GDELT DOC 2.0 route and eight-category panel exist on the review branch; shared refresh lease and API cache are five minutes; original publisher links and partial-coverage notice are displayed. | Add independent source adapters, provider health tests, category-level fixtures, deduplication tests, and monitored rate-limit/failure behavior. GDELT is not exhaustive or guaranteed instant. |
 | Hazard signals | Existing USGS/NASA signal integration and source-count/coverage UI are present. | Verify each adapter, timestamp semantics, geo coordinates, stale-data handling, and attribution; do not claim all disasters are covered. |
 | Evidence and Q-Clock | Existing narrative/time-map UI requires a source/evidence audit. | Separate symbolic projections from empirical analysis; publish reproducible formulas, test cases, confidence basis, alternative explanations, and uncertainty. |
-| Pi authentication and payments | No verified end-to-end payment implementation is evidenced by this PR. | Implement SDK initialization, authentication verification, payment approval/completion, incomplete-payment recovery, idempotency, ownership checks, durable order state, and Testnet tests. |
-| Automatic transaction-fee handling | Not implemented or validated by this PR. | For Stellar SDK-built transactions, read the latest ledger's `base_fee_in_stroops` from the selected Pi Horizon network and pass the returned fee to TransactionBuilder. Recheck the ledger value per transaction/batch and handle RPC failure safely. |
+| Pi authentication and payments | Pi SDK loading/initialization, server-side `/v2/me` verification, server-priced Testnet U2A retrieval/approval/completion/read-back, private payment-intent RPCs, and server-authoritative incomplete-payment recovery are implemented. Live end-to-end payment remains unverified because Preview server credentials are missing. | Run sandbox tests with the registered Testnet app, strengthen callback/retry/reconciliation and authorization tests, then separately implement and test entitlements/refunds before any paid-value delivery. |
+| Pi Testnet fee telemetry | `/api/pi/testnet-fee` reads the latest Testnet Horizon ledger's `base_fee_in_stroops` and converts it to Pi using integer arithmetic. The latest Preview smoke test received HTTP 502 because Horizon was unreachable; live availability is not established. | Keep the endpoint read-only. If a separate Stellar SDK transaction builder is added, fetch the current ledger fee at transaction time, pass the exact stroop fee to `TransactionBuilder`, and fail safely on Horizon errors. |
 | Micro-payments / x402 | Not implemented or validated by this PR. | Do not assume an on-chain minimum of 0.01 Pi or promise that Pi.createPayment supports a custom fee. Design any prepaid-credit or batched-settlement ledger as a separate custodial accounting feature with explicit user consent, durable double-entry records, refunds, reconciliation, and legal/security review. Do not represent internal credits as on-chain Pi. |
 | URL inspection | Not evidenced as complete. | Enforce HTTP(S)-only URLs, reject credentials, block loopback/private/link-local/reserved IP ranges after DNS resolution, revalidate every redirect, cap redirects/body/time, defend against DNS rebinding, and never execute fetched content. Add SSRF regression tests. |
 | File sharing and storage | Not evidenced as complete. | Verify current Pi SDK support before calling native sharing; otherwise use a clearly labeled browser download/share fallback. Add private storage, MIME/size limits, retention, deletion, and access controls. |
@@ -69,7 +69,7 @@ Status: **living engineering record**. A checked item requires code, tests, and 
 
 ## Current scope boundary
 
-This document is a delivery and safety record, not evidence that every row is already implemented. In this change set, the news panel and source-coverage presentation are the delivered work; CI and Preview are still being validated. Pi payment processing, automatic fee routing, x402, internal credits, marketplace billing, URL scanning, file sharing, agent execution, SoloHost packaging, governance, and Mainnet approval must remain disabled or clearly labeled as planned until code and test evidence exist. Mainnet activation requires a separate explicit instruction from the owner.
+This document is a delivery and safety record, not evidence that every row is already implemented. In this change set, the GDELT/news and USGS/NASA source routes, Pi Sandbox identity and payment code path, private payment-intent persistence, incomplete-payment recovery, and read-only Testnet fee telemetry are implemented. CI and Preview builds can pass while Pi live credentials/Horizon remain unavailable. x402, internal credits/entitlements, marketplace billing, URL scanning, file sharing, agent execution, SoloHost packaging, governance, and Mainnet approval remain disabled or planned until their own code and test evidence exist. Mainnet activation requires a separate explicit instruction from the owner.
 
 
 ## Verified Testnet infrastructure added in the current development slice
@@ -100,3 +100,34 @@ The public news feed is fetched from GDELT and the hazard route reads USGS/NASA 
 ### Video demonstration boundary
 
 A Testnet walkthrough can currently demonstrate the global news feed, source attribution, partial coverage disclosures, hazard-source coverage, the isolated Supabase read-only data panel, and live Pi Testnet ledger/fee telemetry. Agent templates should be presented as prototypes. Do not demonstrate a payment as successful unless the full Pi Sandbox/Testnet approve → wallet transaction → complete flow has passed with the project's own credentials. Do not switch `Pi.init` to production or enable Mainnet.
+
+
+## Pi Developer Portal compliance re-check — 2026-11-23
+
+The official Pi Developer documentation was checked against the repository implementation:
+
+| Official requirement | Repository implementation | Result |
+|---|---|---|
+| Load the official SDK script from `https://sdk.minepi.com/pi-sdk.js` | `app/layout.tsx` loads the SDK through Next.js `afterInteractive` | Implemented; runtime verification in Pi Browser remains required |
+| Initialize Testnet with `Pi.init({ version: "2.0", sandbox: true })` before SDK methods | `components/PiSandboxPaymentPanel.tsx` initializes Sandbox before authentication/payment | Implemented; Mainnet mode is not enabled |
+| Authenticate through the SDK and verify the access token server-side | `Pi.authenticate(['username','payments'], ...)`; backend validates with `GET /v2/me` using Bearer auth | Implemented; requires an actual Pi Browser session |
+| Approve U2A payment server-side with the app Server API Key | Backend retrieves the payment with `Authorization: Key`, checks server-known plan, app metadata, Testnet network, direction, amount and user UID, then approves | Implemented; credential-dependent |
+| Complete and read back payment state | Backend completes through Platform API, re-reads the PaymentDTO, and requires matching txid plus `transaction_verified`, `developer_completed`, and transaction verification before ledger completion | Implemented; credential-dependent |
+| Handle the SDK's incomplete-payment callback | Recovery now begins inside `onIncompletePaymentFound` without waiting for `Pi.authenticate()` to resolve. The server fetches the PaymentDTO by payment ID using the app key, checks ownership/app/network/plan/amount/txid, approves if needed, completes, reads back, then persists completion | Implemented in code and unit-tested; real Sandbox interruption/recovery test pending |
+| Keep server key private and don't trust browser payment metadata | Pi key remains server-side; recovery derives plan, UID, amount, network, and txid from the Pi Platform API response | Implemented |
+| Keep Mainnet and paid entitlement release distinct | Sandbox is hard-coded for this UI; database constrains payments to Testnet; entitlement and Mainnet flags remain false | Kept disabled |
+
+Official references:
+- Getting Started: https://developers.minepi.com/docs/build-first-app/GettingStarted
+- Authentication: https://developers.minepi.com/docs/authenticate-user/Authentication
+- Payments: https://developers.minepi.com/docs/accept-payment/Payments
+- SDK Reference: https://developers.minepi.com/docs/api-reference/SdkReference
+- Platform API: https://developers.minepi.com/docs/api-reference/PlatformAPI
+
+### Preview configuration at this audit
+
+- `PI_API_KEY` is absent from Preview branch `fix/ci-clean-base`.
+- `SUPABASE_SERVICE_ROLE_KEY` exists as a sensitive Preview variable but its stored value is empty. Treat it as missing.
+- `NEXT_PUBLIC_SUPABASE_URL` and the publishable key are configured for the isolated `foresight-paths-dev` project.
+- Testnet release flags are set for Preview; entitlement delivery and Mainnet approval remain false.
+- Consequently, approval/completion/recovery are fail-closed. Both server secrets must be entered directly in Vercel Preview settings and an actual Pi Sandbox payment plus interrupted-payment recovery must pass before the flow is reported as live.
