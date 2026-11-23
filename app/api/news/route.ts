@@ -110,9 +110,10 @@ export async function GET() {
   });
   let articles: NewsItem[] = [];
   let sourceError: string | null = null;
+  let sourceCauseCode: string | null = null;
   try {
     const response = await fetch('https://api.gdeltproject.org/api/v2/doc/doc?' + params, {
-      headers: { Accept: 'application/json', 'User-Agent': 'ForesightPaths/0.1' },
+      headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(15000),
       next: { revalidate: 120 },
     });
@@ -175,8 +176,12 @@ export async function GET() {
     }
   } catch (error) {
     const reason = error instanceof Error ? error.name : 'UnknownError';
+    const details = error as Error & { cause?: { code?: string } };
+    sourceCauseCode = typeof details.cause?.code === 'string'
+      ? details.cause.code.slice(0, 80)
+      : null;
     sourceError = 'GDELT_' + reason;
-    console.warn('GDELT global news fetch failed', { reason });
+    console.warn('GDELT global news fetch failed', { reason, causeCode: sourceCauseCode });
   }
 
   const unique = [...new Map(articles.map((article) => [article.url, article])).values()]
@@ -203,6 +208,7 @@ export async function GET() {
     categoryCounts,
     categoriesUnavailable: sourceError ? categoriesRequested : [],
     sourceError,
+    sourceCauseCode,
     articles: unique,
     note: 'GDELT indexes global news but is not exhaustive or a guaranteed real-time wire service. The timestamp shown is the feed observation time, not necessarily the publisher publication time. Categories are preliminary title-keyword labels; open the original publisher to verify facts.',
   }, { headers: { 'Cache-Control': 'public, s-maxage=90, stale-while-revalidate=180' } });
