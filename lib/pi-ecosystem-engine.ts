@@ -221,40 +221,39 @@ export function analyzeThreatAndGenerateBundle(
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_|_$/g, '') || `${input.threatCategory}_guard`;
 
-  const mcpAgentCode = `// DESIGN SCAFFOLD ONLY: provider adapter/API are not verified; do not deploy as-is.\n// MCP Server + x402 V2 concept (Generated for ${input.title})
-import { createX402McpServer, withX402Client } from "@x402/mcp-pi";
-
-export const server = createX402McpServer({
-  name: "${slug}_defense_agent",
-  network: "pi:testnet",
-  facilitatorUrl: "https://api.minepi.com/x402/facilitator",
-  circuitBreakerMaxRiskPct: ${riskScorePct},
-});
-
-server.paidTool(
-  "mitigate_${input.threatCategory}",
-  {
-    description: "Executes precautionary containment for: ${input.title.replace(/"/g, "'")}",
-    pricePi: "${DEFAULT_PLAN_PRICE_PI}", // Illustrative example only; configure the real plan in Pi Developer Portal.
-    scheme: "batch-settlement",
-    oracleSpreadGuardPct: ${input.oracleSpreadPct.toFixed(2)},
+  const mcpAgentCode = `// READ-ONLY AGENT STARTER TEMPLATE; not a connected MCP server.
+// No API keys, payment adapter, wallet signer, or external write connector is configured.
+export const agentDefinition = {
+  id: ${JSON.stringify(slug)},
+  title: ${JSON.stringify(input.title)},
+  environment: 'Pi Testnet (public reads only)',
+  capabilities: ['read_public_signals', 'correlate_evidence', 'draft_defensive_recommendations'],
+  permissions: {
+    externalWrites: false,
+    walletSigning: false,
+    paymentSubmission: false,
+    thirdPartySystemChanges: false,
   },
-  async ({ targetNode, digestSha256 }) => {
-    return {
-      status: "${oracleStatus === 'spread_warning' ? 'safe_fallback' : 'armed'}",
-      riskScorePct: ${riskScorePct},
-      estimatedHedgePi: ${estimatedPiCost},
-      targetNode,
-      verifiedDigest: digestSha256,
-    };
-  }
-);
+  integrations: { mcpServer: 'not_connected', x402: 'not_implemented', piSubscriptionServiceIdRequired: true },
+  scenario: {
+    riskScorePct: ${riskScorePct},
+    riskLevel: ${JSON.stringify(riskLevel)},
+    scenarioBudgetEquivalentPi: ${estimatedPiCost},
+    assumedPiUsdPrice: ${safePiPrice},
+  },
+  recommendations: ${JSON.stringify(presetMitigations)},
+};
 
-// Exported agent wrapper for downstream Pi applications
-export const clientWrapper = withX402Client({
-  maxPerCallPi: "${DEFAULT_PLAN_PRICE_PI}", // Example cap only; not a network fee.
-  monthlyCapPi: "${(DEFAULT_PLAN_PRICE_PI * 30).toFixed(7)}", // Example cap only; not an enabled billing limit.
-});
+export async function runAgent() {
+  return {
+    status: 'simulation_only',
+    executedActions: 0,
+    externalWrites: 0,
+    paymentSubmissions: 0,
+    walletSignatures: 0,
+    recommendations: agentDefinition.recommendations,
+  };
+};
 `;
 
   const agentsMarkdown = `# agents.md — ${input.title}
