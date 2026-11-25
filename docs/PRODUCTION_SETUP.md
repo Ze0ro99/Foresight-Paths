@@ -12,7 +12,7 @@ Add the following under **Project → Settings → Environment Variables**, for 
 | `PI_API_KEY` | Pi server-side identity/payment operations | Testnet app key for Preview; server-only secret. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public read-only Foresight data | Must point to `foresight-paths-dev`, not the PiRC project. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public read-only Foresight data | Publishable key; RLS limits public access to SELECT. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Private Testnet payment-intent RPCs | Server-only secret; never use a `NEXT_PUBLIC_` prefix. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Legacy private Testnet payment-intent RPCs only | Server-only legacy credential; never use a `NEXT_PUBLIC_` prefix. The GDELT refresh function uses Supabase's injected `SUPABASE_SECRET_KEYS` inside Edge Functions, not in Vercel. |
 | `PI_NETWORK` | Pi server environment | Must be exactly `Pi Testnet` for this gateway. Mainnet is rejected. |
 | `PI_SANDBOX_MODE` | Pi server environment | `true` by default; `false` only for explicitly enabled direct Testnet mode. |
 | `PI_DIRECT_TESTNET_ENABLED` | Direct Testnet SDK mode | Must be `true` when `PI_SANDBOX_MODE=false`; does not change the app's registered network. |
@@ -22,7 +22,7 @@ Add the following under **Project → Settings → Environment Variables**, for 
 | `PI_ENTITLEMENT_LEDGER_ENABLED` | Paid credit/entitlement delivery | Must remain `false` until balances, refunds, and entitlement delivery are separately implemented and tested. |
 | `PI_MAINNET_PAYMENTS_APPROVED` | Mainnet payment release | `false` by default; requires the owner’s explicit approval after Testnet end-to-end validation. |
 
-After changing variables, redeploy the relevant environment. Never commit real credentials.
+After changing variables, redeploy the relevant environment. Never commit real credentials. For `/api/news`, Preview needs only the public Supabase URL and publishable key. The fixed-query `news-refresh` Edge Function checks that public key, uses the server-injected Supabase secret inside its own runtime, and applies a five-minute shared database lock; do not copy a Supabase secret/service-role value into Vercel for news ingestion.
 
 ## 2. Pi integration boundary
 
@@ -61,7 +61,7 @@ Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_S
 | Durable prepaid/premium entitlements | Not implemented; requires separate credit/entitlement and refund workflows |
 | x402 paid execution | Disabled; no trusted facilitator/settlement integration |
 | Rewarded-ad grants | Disabled; no verified provider callback |
-| Cloud-agent execution | Disabled pending telemetry validation, calibrated scoring, and independent settlement verification |
+| Agent Operations Workbench | Available in Pi Browser after username-only Pi identity verification; saved agent profiles, bounded read-only simulations, off-chain proposals/votes, and subscription previews. No external actions or chain writes. |
 
 ## 5. Smoke checks
 
@@ -69,6 +69,8 @@ After deployment:
 - `GET /` should return HTTP 200 and render Arabic RTL.
 - `GET /api/health` should return HTTP 200 and accurately report configuration state.
 - `GET /api/global-sense` should return source-attributed signals or an empty partial-coverage result when upstream sources are unavailable.
+- `GET /api/news` should return GDELT source-attributed articles, a cached fallback, or an explicit unavailable state; never synthetic reports.
+- The private `/api/agents/workbench` accepts authenticated POST requests only. A 405 response to GET is expected; test the authenticated flow from Pi Browser, not with an anonymous GET.
 - `GET /api/pi/verify` should report sandbox mode and whether the server key is configured, without exposing secrets.
 - `GET /api/x402/mcp` should expose discovery only; paid execution remains disabled.
 
