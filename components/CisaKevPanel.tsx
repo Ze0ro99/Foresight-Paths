@@ -53,9 +53,12 @@ export default function CisaKevPanel({ locale }: { locale: string }) {
   }, [ar]);
 
   useEffect(() => {
-    void refresh();
+    const initialFetch = window.setTimeout(() => { void refresh(); }, 0);
     const interval = window.setInterval(() => { void refresh(); }, 15 * 60 * 1000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearTimeout(initialFetch);
+      window.clearInterval(interval);
+    };
   }, [refresh]);
 
   const items = data?.vulnerabilities ?? [];
