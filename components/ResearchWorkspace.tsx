@@ -40,6 +40,7 @@ import ScenarioDetailDrawer from './ScenarioDetailDrawer';
 import BackendMechanicsModal, { BackendTab } from './BackendMechanicsModal';
 import AddEventModal from './AddEventModal';
 import LiveNewsPanel from './LiveNewsPanel';
+import CisaKevPanel from './CisaKevPanel';
 import TestnetReadinessPanel from './TestnetReadinessPanel';
 
 export default function ResearchWorkspace() {
@@ -615,6 +616,7 @@ export default function ResearchWorkspace() {
       )}
 
       <LiveNewsPanel locale={locale} />
+      <CisaKevPanel locale={locale} />
       <TestnetReadinessPanel locale={locale} />
 
       {apiError && (
