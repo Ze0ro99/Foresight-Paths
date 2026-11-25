@@ -7,13 +7,13 @@
 - Agent runs are bounded, deterministic, read-only analyses over records already stored in the isolated foresight-paths-dev project. The Pi Testnet observer reads the public Horizon ledger only. This workbench slice does not invoke an LLM for every run; it uses reviewed, template-specific analysis rules and source attribution.
 - Results include source freshness, coverage gaps, attributed findings, safe recommendations, and explicit unavailable/partial states.
 - Proposals and votes persist off-chain. Each verified Pi UID may vote once per proposal. Voting never executes a proposal and is not represented as binding Pi governance.
-- Recurring monitoring plans can be saved as previews. The Pi Service ID field is metadata only. This does not create a Pi subscription, prompt the wallet, collect funds, renew, or grant an entitlement.
+- Recurring monitoring plans can be saved as off-chain previews. Separately, the native Pi Testnet subscription panel reads an already-registered Developer Portal service and calls `Pi.SmartContract.Subscription.subscribe(..., { mode: 'simulate' })` after the user explicitly requests the `payments` scope. This is a contract simulation only: it does not sign, pay, create an on-chain subscription, renew, or grant an entitlement.
 
 ## Safety model
 
-- Every run is simulation mode. External actions, account changes, service changes, transactions, and entitlements remain zero.
+- Agent runs and subscription contract calls are simulation-only. External actions, account changes, service changes, transactions, and entitlements remain zero.
 - Cybersecurity guidance is defensive and authorized: evidence preservation, corroboration, containment of owned/authorized systems, patch planning, credential rotation, and clean recovery. No exploit execution, hack-back, unauthorized scanning, attacker pursuit, or deanonymization.
-- Pi authentication requests username only; no payments scope is requested.
+- The workbench bootstrap requests username only. The optional native subscription simulator requests username + payments scope only after the user presses its explicit simulation button; no write/submit mode is exposed.
 - The Edge Function validates the Pi token on each request. Client-supplied Pioneer IDs are ignored.
 - Personal workbench tables have RLS enabled and no anon/authenticated grants. Only the service-role-backed Edge Function can access them.
 - The run limiter allows one run every 20 seconds and caps each Pioneer at 40 runs in a rolling 24-hour window.
@@ -55,4 +55,14 @@
 - The Edge Function checks the configured project publishable key in the `apikey` header. It uses the Supabase-injected `SUPABASE_SECRET_KEYS` default key inside the Edge runtime; the secret key is never copied to Vercel or the browser.
 - Database RPCs `claim_source_refresh` and `ingest_news_batch` enforce a five-minute shared refresh interval and idempotent source-key/external-URL upserts.
 - GDELT `seendate` is stored as `observed_at`, not publisher `published_at`; all records remain `unverified` until independently corroborated.
+
+
+
+## Native Pi Subscription Testnet simulation
+
+- Official SDK calls: `Pi.SmartContract.Subscription.getService(walletAddress, serviceId, { mode: 'simulate' })` and `subscribe(walletAddress, serviceId, autoRenew, periods, { mode: 'simulate' })`.
+- Service IDs must already be registered in the Pi Developer Portal. Do not create unlinked services with the SDK for the production app catalogue.
+- The simulator explicitly asks for the Pi `payments` scope only after the user starts it. It accepts a public wallet address, validates its format, and checks the on-chain service before simulation.
+- The UI has no `submit` mode. No wallet signing, charge, transaction, auto-renew processing, or entitlement grant can occur from this panel.
+- Pi documentation currently describes subscriptions as Testnet v1 only, with approval windows just under 180 days. Renewals do not run automatically: the merchant must call `process` each billing period. A scheduled merchant worker and its signing controls are not implemented in this slice.
 
