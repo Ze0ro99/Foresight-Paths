@@ -271,25 +271,32 @@ ${presetMitigations.map((m, i) => `${i + 1}. ${m}`).join('\n')}
 
   const soloHostManifest = JSON.stringify(
     {
-      schema: 'solohost.pi.agent/v1',
+      schema: 'solohost.pi.agent-design/v1',
       agentId: `${slug}_solohost`,
       title: input.title,
-      runtime: 'node20-isolated',
-      privacyMode: 'local_node_inference',
-      mcpEndpoint: '/x402/mcp',
-      pirc203OraclePriceUsd: safePiPrice,
-      pirc254CircuitBreaker: {
+      designStatus: 'unverified_scaffold',
+      executionMode: 'manual_review_only',
+      deployed: false,
+      runtime: 'node20-isolated (proposed)',
+      privacyMode: 'local_node_inference (proposed; not enforced here)',
+      mcpEndpoint: null,
+      assumedPiUsdPrice: safePiPrice,
+      scenarioSpreadThreshold: {
         enabled: true,
-        haltOnOracleSpreadAbovePct: 4.5,
-        currentSpreadPct: input.oracleSpreadPct,
+        thresholdPct: 4.5,
+        inputSpreadPct: input.oracleSpreadPct,
+        liveOracleConnected: false,
       },
-      estimatedBudgetPi: estimatedPiCost,
+      scenarioBudgetEquivalentPi: estimatedPiCost,
     },
     null,
     2
   );
 
-  const sorobanContractCode = `// Soroban / PiRC2 Subscription + PiRC-254 Circuit Breaker Contract
+  const sorobanContractCode = `// COMMUNITY DESIGN SCAFFOLD ONLY. Not an official Pi contract or the native Pi Subscription v1 contract.
+// Requires compilation, tests, independent security audit, and separate Stellar Testnet deployment.
+// This application does not deploy, sign, or submit a live transaction.
+// Soroban / Community PiRC2 Subscription + Scenario Threshold
 #![no_std]
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, Symbol};
 
