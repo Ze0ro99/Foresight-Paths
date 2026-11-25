@@ -12,7 +12,6 @@ export async function GET() {
     const response = await fetch(CISA_KEV_URL, {
       headers: { Accept: 'application/json' },
       signal: AbortSignal.timeout(12000),
-      next: { revalidate: 900 },
     });
     if (!response.ok) {
       return NextResponse.json(
