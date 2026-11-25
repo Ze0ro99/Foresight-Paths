@@ -31,9 +31,11 @@ test('scenario generator exports explicitly unverified MCP/Soroban scaffolds and
   assert.equal(bundle.oracleStatus, 'healthy');
   assert.ok(bundle.estimatedPiCost > 2000);
   assert.ok(bundle.precautionarySteps.length >= 3);
-  assert.ok(bundle.mcpAgentCode.includes('DESIGN SCAFFOLD ONLY'));
+  assert.ok(bundle.mcpAgentCode.includes('READ-ONLY AGENT STARTER TEMPLATE'));
+  assert.ok(bundle.mcpAgentCode.includes('paymentSubmission: false'));
+  assert.ok(!bundle.mcpAgentCode.includes('createX402McpServer'));
   assert.ok(bundle.sorobanContractCode.includes('authorize_pirc2'));
-  assert.ok(bundle.soloHostManifest.includes('solohost.pi.agent/v1'));
+  assert.ok(bundle.soloHostManifest.includes('solohost.pi.agent-design/v1'));
   assert.ok(bundle.subscriptionSpecJson.includes('Pi Native Subscription Contract v1'));
   assert.ok(bundle.subscriptionSpecJson.includes('"submitModeEnabled": false'));
   assert.ok(bundle.subscriptionSpecJson.includes('"priceIsIllustrative": true'));
