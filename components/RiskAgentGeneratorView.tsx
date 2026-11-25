@@ -716,7 +716,7 @@ export default function RiskAgentGeneratorView({
         </div>
       </section>
 
-      {/* 2. 0.0001 Pi Micro-Subscription Economics vs 0.01 Pi Base Fee */}
+      {/* 2. Pi subscription and fee capability status; no fixed fee assumptions */}
       <section className="rounded-lg border border-[#2B2856] bg-[#101124] p-5">
         <div className="flex items-center gap-2 border-b border-[#2B2856] pb-3">
           <Coins className="h-5 w-5 text-[#C084FC]" aria-hidden="true" />
@@ -747,7 +747,7 @@ export default function RiskAgentGeneratorView({
         </div>
       </section>
 
-      {/* 3. KYC-Verified Governance Voting for Proposed Agents & Contracts */}
+      {/* 3. Local proposal preview; not persisted, binding, or executable */}
       <section className="rounded-lg border border-[#2B2856] bg-[#101124] p-5">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#2B2856] pb-3">
           <div className="flex items-center gap-2">
