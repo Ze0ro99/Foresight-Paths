@@ -61,7 +61,7 @@ Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_S
 | Durable prepaid/premium entitlements | Not implemented; requires separate credit/entitlement and refund workflows |
 | x402 paid execution | Disabled; no trusted facilitator/settlement integration |
 | Rewarded-ad grants | Disabled; no verified provider callback |
-| Agent Operations Workbench | Available in Pi Browser after username-only Pi identity verification; saved agent profiles, bounded read-only simulations, off-chain proposals/votes, and subscription previews. No external actions or chain writes. |
+| Agent Operations Workbench | Saved agent profiles, bounded read-only analyses, off-chain proposals/votes, recurring-plan previews, and native Pi Testnet subscription simulation. No submit mode, external actions, or chain writes. |
 
 ## 5. Smoke checks
 
@@ -71,6 +71,7 @@ After deployment:
 - `GET /api/global-sense` should return source-attributed signals or an empty partial-coverage result when upstream sources are unavailable.
 - `GET /api/news` should return GDELT source-attributed articles, a cached fallback, or an explicit unavailable state; never synthetic reports.
 - The private `/api/agents/workbench` accepts authenticated POST requests only. A 405 response to GET is expected; test the authenticated flow from Pi Browser, not with an anonymous GET.
+- The native subscription panel must run inside Pi Browser on the registered Testnet app. Register a service in Pi Developer Portal first, enter its Service ID and a public Testnet wallet address, then run the panel's simulate-only check. Never test with a wallet seed or passphrase.
 - `GET /api/pi/verify` should report sandbox mode and whether the server key is configured, without exposing secrets.
 - `GET /api/x402/mcp` should expose discovery only; paid execution remains disabled.
 
@@ -83,3 +84,8 @@ After deployment:
 - Do not describe symbolic correlations as factual evidence or calibrated threat scores.
 - Keep cloud-agent execution, paid x402 execution, and rewarded-ad grants disabled until their respective evidence and security gates are met.
 - Run build, typecheck, unit tests, and a security review before enabling any paid feature.
+
+
+### Pi native subscription simulation
+
+The Cloud Agent workbench includes an optional Pi Testnet v1 subscription simulation. It requests the Pi `payments` scope only after the user explicitly presses the simulation control. The panel invokes the documented `Pi.SmartContract.Subscription.getService` and `subscribe` methods with `mode: 'simulate'`; this performs an RPC simulation without signing a transaction or charging Pi. A service must already be registered in the Pi Developer Portal and its Service ID entered in the app. The panel does not call `registerService`, `process`, or any `submit` mode. Pi Testnet v1 supports approval windows just under 180 days (typically 5 monthly or 25 weekly periods); merchant renewals require an explicit `process` call and are not automatic. See the [official Pi subscription implementation docs](https://developers.minepi.com/docs/subscriptions/Implementation) and [additional methods](https://developers.minepi.com/docs/subscriptions/AdditionalMethods).
