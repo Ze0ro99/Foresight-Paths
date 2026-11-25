@@ -40,7 +40,8 @@ export async function GET() {
     },
     piSandboxMode,
     x402: 'read_only_discovery_only',
-    cloudAgent: 'disabled_until_security_gates_pass',
+    cloudAgent: 'read_only_testnet_simulation_requires_pi_identity',
+    agentWorkbench: 'testnet_simulation_only_no_external_actions',
     rewardedAds: 'disabled_until_provider_verification',
   };
 
