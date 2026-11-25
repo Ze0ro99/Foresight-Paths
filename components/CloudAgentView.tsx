@@ -16,6 +16,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { AppLocale, GlobalSensedSignal } from '@/lib/types';
+import { formatStroopsAsPi, isValidPiWalletAddress, isValidSubscriptionServiceId, maxSubscriptionPeriods } from '@/lib/pi-subscription-sim.mjs';
 
 type PiAuthResponse = {
   accessToken: string;
@@ -96,6 +97,39 @@ type SubscriptionPreview = {
   created_at: string;
 };
 
+type PiSubscriptionSdk = {
+  authenticate: (
+    scopes: string[],
+    onIncompletePaymentFound: (payment: unknown) => void,
+  ) => Promise<{ accessToken: string; user?: { username?: string; uid?: string } }>;
+  SmartContract?: {
+    Subscription?: {
+      getService: (sourceAddress: string, serviceId: string, options: { mode: 'simulate' }) => Promise<unknown>;
+      subscribe: (
+        subscriberAddress: string,
+        serviceId: string,
+        autoRenew: boolean,
+        periods: string,
+        options: { mode: 'simulate' },
+      ) => Promise<unknown>;
+    };
+  };
+};
+
+type NativeSubscriptionPreview = {
+  serviceName: string;
+  serviceId: string;
+  pricePi: string;
+  periodDays: string;
+  trialDays: string;
+  periods: number;
+  totalAllowancePi: string;
+  autoRenew: boolean;
+  subscriptionId: string | null;
+  serviceEndAt: string | null;
+  nextChargeAt: string | null;
+};
+
 const PLAN_OPTIONS = [
   { key: 'continuous_watch', ar: 'مراقبة مستمرة', en: 'Continuous monitoring' },
   { key: 'incident_response', ar: 'متابعة الحوادث', en: 'Incident watch' },
@@ -152,6 +186,11 @@ export default function CloudAgentView({
   const [planKey, setPlanKey] = useState('daily_brief');
   const [serviceId, setServiceId] = useState('');
   const [periods, setPeriods] = useState(1);
+  const [subscriberAddress, setSubscriberAddress] = useState('');
+  const [nativePeriods, setNativePeriods] = useState(1);
+  const [nativeAutoRenew, setNativeAutoRenew] = useState(true);
+  const [nativePreview, setNativePreview] = useState<NativeSubscriptionPreview | null>(null);
+  const [nativePreviewError, setNativePreviewError] = useState<string | null>(null);
 
   const copy = {
     title: ar ? 'مركز الوكلاء والعمليات الذكية' : 'Agent Operations Workbench',
@@ -402,6 +441,120 @@ export default function CloudAgentView({
     }
   };
 
+
+  const simulateNativeSubscription = async () => {
+    setNativePreviewError(null);
+    setNativePreview(null);
+    if (!sdkReady) {
+      setNativePreviewError(ar ? 'افتح التطبيق داخل Pi Browser على تطبيق Testnet المسجل.' : 'Open the registered Testnet app in Pi Browser.');
+      return;
+    }
+    if (!isValidPiWalletAddress(subscriberAddress)) {
+      setNativePreviewError(ar ? 'أدخل عنوان محفظة Pi العامة الصحيح (G…). لا تُدخل عبارة الاسترداد أو كلمة مرور.' : 'Enter a valid public Pi wallet address (G…). Never enter a recovery phrase or passphrase.');
+      return;
+    }
+    if (!isValidSubscriptionServiceId(serviceId)) {
+      setNativePreviewError(ar ? 'أدخل معرّف خدمة رقميًا مسجلًا مسبقًا في بوابة مطوري Pi.' : 'Enter a numeric service ID already registered in the Pi Developer Portal.');
+      return;
+    }
+    if (!Number.isInteger(nativePeriods) || nativePeriods < 1) {
+      setNativePreviewError(ar ? 'عدد الفترات يجب أن يكون عددًا صحيحًا موجبًا.' : 'The number of periods must be a positive integer.');
+      return;
+    }
+
+    setBusy('native-subscription');
+    try {
+      const pi = (window as unknown as { Pi?: PiSubscriptionSdk }).Pi;
+      if (!pi?.authenticate || !pi.SmartContract?.Subscription) {
+        throw new Error('SDK_UNAVAILABLE');
+      }
+      // The payments scope is requested only after the user explicitly starts this
+      // no-signature Testnet simulation. The SDK calls below are simulate-only.
+      const auth = await pi.authenticate(['username', 'payments'], () => undefined);
+      if (!auth?.accessToken) throw new Error('PI_AUTH_FAILED');
+      setAccessToken(auth.accessToken);
+      if (auth.user?.username) setUsername(auth.user.username);
+
+      const api = pi.SmartContract.Subscription;
+      const rawService = await api.getService(subscriberAddress.trim(), serviceId.trim(), { mode: 'simulate' });
+      if (!rawService || typeof rawService !== 'object') throw new Error('SERVICE_LOOKUP_FAILED');
+      const service = rawService as Record<string, unknown>;
+      if (service.is_active !== true) throw new Error('SERVICE_NOT_ACTIVE');
+
+      let price: bigint;
+      let periodSeconds: bigint;
+      let trialSeconds: bigint;
+      try {
+        price = BigInt(String(service.price ?? ''));
+        periodSeconds = BigInt(String(service.period_secs ?? ''));
+        trialSeconds = BigInt(String(service.trial_period_secs ?? '0'));
+      } catch {
+        throw new Error('SERVICE_DATA_INVALID');
+      }
+      if (price <= 0n || periodSeconds <= 0n || trialSeconds < 0n) throw new Error('SERVICE_DATA_INVALID');
+
+      const maxPeriods = maxSubscriptionPeriods(periodSeconds.toString());
+      if (maxPeriods < 1 || nativePeriods > maxPeriods) {
+        throw new Error('APPROVAL_WINDOW_EXCEEDED:' + maxPeriods);
+      }
+
+      const rawSimulation = await api.subscribe(
+        subscriberAddress.trim(),
+        serviceId.trim(),
+        nativeAutoRenew,
+        String(nativePeriods),
+        { mode: 'simulate' },
+      );
+      const simulation = rawSimulation && typeof rawSimulation === 'object'
+        ? rawSimulation as Record<string, unknown>
+        : {};
+      const toIso = (value: unknown) => {
+        const seconds = Number(value);
+        return Number.isFinite(seconds) && seconds > 0
+          ? new Date(seconds * 1000).toISOString()
+          : null;
+      };
+      setNativePreview({
+        serviceName: typeof service.name === 'string' ? service.name.slice(0, 120) : (ar ? 'خطة Pi' : 'Pi subscription'),
+        serviceId: serviceId.trim(),
+        pricePi: formatStroopsAsPi(price.toString()),
+        periodDays: (Number(periodSeconds) / 86400).toFixed(2),
+        trialDays: (Number(trialSeconds) / 86400).toFixed(2),
+        periods: nativePeriods,
+        totalAllowancePi: formatStroopsAsPi((price * BigInt(nativePeriods)).toString()),
+        autoRenew: typeof simulation.auto_renew === 'boolean' ? simulation.auto_renew : nativeAutoRenew,
+        subscriptionId: simulation.sub_id === undefined ? null : String(simulation.sub_id),
+        serviceEndAt: toIso(simulation.service_end_ts),
+        nextChargeAt: toIso(simulation.next_charge_ts),
+      });
+      setNotice(ar
+        ? 'نجحت محاكاة عقد الاشتراك على Pi Testnet. لم يتم توقيع معاملة أو خصم Pi.'
+        : 'The Pi Testnet subscription contract simulation succeeded. No transaction was signed and no Pi was charged.');
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : '';
+      if (message.includes('APPROVAL_WINDOW_EXCEEDED:')) {
+        const maximum = Number(message.split(':')[1]) || 0;
+        setNativePreviewError(ar
+          ? `هذه الخطة تتجاوز نافذة الموافقة في Testnet v1. الحد الأقصى الآمن هو ${maximum} فترة.`
+          : `This plan exceeds the Testnet v1 approval window. The safe maximum is ${maximum} periods.`);
+      } else if (message.includes('AlreadySubscribed')) {
+        setNativePreviewError(ar ? 'هذه المحفظة لديها اشتراك نشط في هذه الخطة بالفعل.' : 'This wallet already has an active subscription to this plan.');
+      } else if (message.includes('ServiceNotFound')) {
+        setNativePreviewError(ar ? 'لم يتم العثور على هذه الخطة على عقد اشتراكات Pi Testnet.' : 'This service ID was not found on the Pi Testnet subscription contract.');
+      } else if (message.includes('ServiceNotActive')) {
+        setNativePreviewError(ar ? 'الخطة متوقفة ولا تقبل اشتراكات جديدة.' : 'This plan is inactive and does not accept new subscriptions.');
+      } else if (message.includes('SERVICE_DATA_INVALID')) {
+        setNativePreviewError(ar ? 'أعاد العقد بيانات سعر أو فترة غير صالحة.' : 'The contract returned an invalid price or billing period.');
+      } else {
+        setNativePreviewError(ar
+          ? 'تعذرت المحاكاة. تحقق من Pi Browser وبيانات المحفظة ومعرّف الخطة، ثم حاول مجددًا.'
+          : 'Simulation failed. Check Pi Browser, wallet address, and service ID, then try again.');
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const selectedTemplate = templates.find((item) => item.template_key === templateKey);
   const selectedAgent = agents.find((item) => item.id === selectedAgentId);
   void onSelectEncryptedNodeOnMap;
@@ -641,6 +794,83 @@ export default function CloudAgentView({
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="rounded-xl border border-amber-300/20 bg-amber-950/10 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="font-bold text-amber-100">{ar ? 'محاكاة اشتراك Pi الأصلي على Testnet' : 'Native Pi Testnet subscription simulation'}</h3>
+          <span className="rounded bg-amber-400/10 px-2 py-1 text-[10px] text-amber-100">{ar ? 'محاكاة فقط' : 'Simulation only'}</span>
+        </div>
+        <p className="mt-2 text-[11px] leading-5 text-amber-50/75">
+          {ar
+            ? 'يستخدم معرّف الخطة من النموذج أعلاه وعنوان المحفظة العامة. يقرأ الخطة ثم يحاكي استدعاء عقد الاشتراك الرسمي. لا توقيع، لا رسوم، لا خصم Pi، ولا استحقاق مدفوع.'
+            : 'Uses the service ID from the form above and your public wallet address. It reads the registered plan and simulates the official subscription contract call. No signature, fee, Pi charge, or paid entitlement.'}
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs text-slate-300">
+            {ar ? 'عنوان المحفظة العامة على Testnet' : 'Public Testnet wallet address'}
+            <input
+              value={subscriberAddress}
+              onChange={(event) => setSubscriberAddress(event.target.value.trim().toUpperCase())}
+              autoComplete="off"
+              spellCheck={false}
+              maxLength={56}
+              placeholder="G…"
+              className="mt-1 w-full rounded-lg border border-white/10 bg-[#11121b] px-3 py-2 font-mono text-xs text-white placeholder:text-slate-600"
+              disabled={!accessToken || busy === 'native-subscription'}
+            />
+          </label>
+          <label className="block text-xs text-slate-300">
+            {ar ? 'عدد الفترات المطلوب محاكاتها' : 'Billing periods to simulate'}
+            <input
+              type="number"
+              min={1}
+              max={25}
+              value={nativePeriods}
+              onChange={(event) => setNativePeriods(Math.min(25, Math.max(1, Number(event.target.value) || 1)))}
+              className="mt-1 w-full rounded-lg border border-white/10 bg-[#11121b] px-3 py-2 text-xs text-white"
+              disabled={!accessToken || busy === 'native-subscription'}
+            />
+          </label>
+        </div>
+        <label className="mt-3 flex items-center gap-2 text-xs text-slate-300">
+          <input type="checkbox" checked={nativeAutoRenew} onChange={(event) => setNativeAutoRenew(event.target.checked)} disabled={busy === 'native-subscription'} />
+          {ar ? 'محاكاة السماح بالتجديد الدوري' : 'Simulate recurring renewal permission'}
+        </label>
+        <button
+          type="button"
+          onClick={() => void simulateNativeSubscription()}
+          disabled={!sdkReady || busy === 'native-subscription'}
+          className="mt-3 w-full rounded-lg border border-amber-300/25 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-100 hover:bg-amber-400/15 disabled:opacity-40"
+        >
+          {busy === 'native-subscription'
+            ? (ar ? 'جارٍ تشغيل المحاكاة…' : 'Running simulation…')
+            : (ar ? 'محاكاة الاشتراك على Pi Testnet' : 'Simulate subscription on Pi Testnet')}
+        </button>
+        {nativePreviewError && <p role="alert" className="mt-3 rounded-lg border border-rose-400/20 bg-rose-500/10 p-3 text-[11px] leading-5 text-rose-100">{nativePreviewError}</p>}
+        {nativePreview && (
+          <div className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-500/5 p-3">
+            <p className="text-xs font-semibold text-emerald-100">{ar ? 'نتيجة المحاكاة' : 'Simulation result'}</p>
+            <div className="mt-2 grid gap-2 text-[11px] sm:grid-cols-2">
+              <p className="text-slate-300">{ar ? 'الخطة' : 'Plan'}: <span className="font-semibold text-white">{nativePreview.serviceName}</span></p>
+              <p className="text-slate-300">Service ID: <span className="font-mono text-white">{nativePreview.serviceId}</span></p>
+              <p className="text-slate-300">{ar ? 'السعر لكل فترة' : 'Price per period'}: <span className="font-semibold text-white">{nativePreview.pricePi} Pi</span></p>
+              <p className="text-slate-300">{ar ? 'مدة الفترة' : 'Billing period'}: <span className="font-semibold text-white">{nativePreview.periodDays} {ar ? 'يوم' : 'days'}</span></p>
+              <p className="text-slate-300">{ar ? 'الفترات' : 'Periods'}: <span className="font-semibold text-white">{nativePreview.periods}</span></p>
+              <p className="text-slate-300">{ar ? 'سقف السماحية المحاكى' : 'Simulated allowance cap'}: <span className="font-semibold text-white">{nativePreview.totalAllowancePi} Pi</span></p>
+              <p className="text-slate-300">{ar ? 'التجديد' : 'Auto-renew'}: <span className="font-semibold text-white">{nativePreview.autoRenew ? (ar ? 'مفعّل في المحاكاة' : 'Enabled in simulation') : (ar ? 'غير مفعّل' : 'Disabled')}</span></p>
+              <p className="text-slate-300">{ar ? 'التجربة المجانية' : 'Trial period'}: <span className="font-semibold text-white">{nativePreview.trialDays} {ar ? 'يوم' : 'days'}</span></p>
+              {nativePreview.subscriptionId && <p className="text-slate-300">Simulation ID: <span className="font-mono text-white">{nativePreview.subscriptionId}</span></p>}
+              {nativePreview.serviceEndAt && <p className="text-slate-300">{ar ? 'نهاية الفترة المحاكاة' : 'Simulated period end'}: <span className="font-semibold text-white">{formatDate(nativePreview.serviceEndAt, ar)}</span></p>}
+              {nativePreview.nextChargeAt && <p className="text-slate-300">{ar ? 'موعد التجديد المحاكى' : 'Simulated next charge'}: <span className="font-semibold text-white">{formatDate(nativePreview.nextChargeAt, ar)}</span></p>}
+            </div>
+            <p className="mt-3 text-[10px] leading-5 text-emerald-100/80">
+              {ar
+                ? 'هذه نتيجة محاكاة من عقد Testnet v1. لا تعني إنشاء اشتراك فعلي ولا تثبت هوية مالك العنوان ولا تمنح أي ميزة.'
+                : 'This is a Testnet v1 contract simulation. It does not create a live subscription, prove address ownership, or grant any feature.'}
+            </p>
+          </div>
+        )}
       </section>
 
       <section className="rounded-xl border border-emerald-400/15 bg-emerald-950/10 p-4">
