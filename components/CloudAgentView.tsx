@@ -465,7 +465,8 @@ export default function CloudAgentView({
     setBusy('native-subscription');
     try {
       const pi = (window as unknown as { Pi?: PiSubscriptionSdk }).Pi;
-      if (!pi?.authenticate || !pi.SmartContract?.Subscription) {
+      const subscriptionApi = pi?.SmartContract?.Subscription;
+      if (!pi?.authenticate || !subscriptionApi) {
         throw new Error('SDK_UNAVAILABLE');
       }
       // The payments scope is requested only after the user explicitly starts this
@@ -475,7 +476,7 @@ export default function CloudAgentView({
       setAccessToken(auth.accessToken);
       if (auth.user?.username) setUsername(auth.user.username);
 
-      const api = pi.SmartContract.Subscription;
+      const api = subscriptionApi;
       const rawService = await api.getService(subscriberAddress.trim(), serviceId.trim(), { mode: 'simulate' });
       if (!rawService || typeof rawService !== 'object') throw new Error('SERVICE_LOOKUP_FAILED');
       const service = rawService as Record<string, unknown>;
@@ -521,7 +522,7 @@ export default function CloudAgentView({
         periodDays: (Number(periodSeconds) / 86400).toFixed(2),
         trialDays: (Number(trialSeconds) / 86400).toFixed(2),
         periods: nativePeriods,
-        totalAllowancePi: formatStroopsAsPi((price * BigInt(nativePeriods)).toString()),
+        totalAllowancePi: formatStroopsAsPi((price * BigInt(nativeAutoRenew ? nativePeriods : 1)).toString()),
         autoRenew: typeof simulation.auto_renew === 'boolean' ? simulation.auto_renew : nativeAutoRenew,
         subscriptionId: simulation.sub_id === undefined ? null : String(simulation.sub_id),
         serviceEndAt: toIso(simulation.service_end_ts),
