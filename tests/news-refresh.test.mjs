@@ -13,7 +13,7 @@ const now = '2026-11-25T18:00:00.000Z';
 
 test('GDELT refresh is globally rate-limited to five minutes', () => {
   assert.equal(GDELT_REFRESH_INTERVAL_SECONDS, 300);
-  assert.match(GDELT_BROAD_QUERY, /^\\(/);
+  assert.ok(GDELT_BROAD_QUERY.startsWith('('));
   assert.match(GDELT_BROAD_QUERY, /"data breach"/);
 });
 
