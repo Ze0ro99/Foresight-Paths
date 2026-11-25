@@ -522,7 +522,7 @@ export default function CloudAgentView({
         serviceId: serviceId.trim(),
         pricePi: formatStroopsAsPi(price.toString()),
         periodDays: (Number(periodSeconds) / 86400).toFixed(2),
-        trialDays: (Number(trialSeconds) / 86400).toFixed(2),
+        trialDays: (Number(simulation.trial_period_secs ?? '0') / 86400).toFixed(2),
         periods: approvedPeriods,
         initialChargePi: formatStroopsAsPi((trialSeconds > BigInt(0) ? BigInt(0) : price).toString()),
         renewalAllowancePi: formatStroopsAsPi((nativeAutoRenew ? price * BigInt(approvedPeriods) : BigInt(0)).toString()),
