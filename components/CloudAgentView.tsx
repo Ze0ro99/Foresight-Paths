@@ -492,9 +492,9 @@ export default function CloudAgentView({
       } catch {
         throw new Error('SERVICE_DATA_INVALID');
       }
-      if (price <= 0n || periodSeconds <= 0n || trialSeconds < 0n) throw new Error('SERVICE_DATA_INVALID');
+      if (price <= BigInt(0) || periodSeconds <= BigInt(0) || trialSeconds < BigInt(0)) throw new Error('SERVICE_DATA_INVALID');
 
-      const maxPeriods = maxSubscriptionPeriods(periodSeconds.toString());
+      const maxPeriods = maxSubscriptionPeriods(periodSeconds.toString(), trialSeconds.toString());
       if (maxPeriods < 1 || nativePeriods > maxPeriods) {
         throw new Error('APPROVAL_WINDOW_EXCEEDED:' + maxPeriods);
       }
@@ -852,6 +852,7 @@ export default function CloudAgentView({
         {nativePreview && (
           <div className="mt-3 rounded-lg border border-emerald-400/20 bg-emerald-500/5 p-3">
             <p className="text-xs font-semibold text-emerald-100">{ar ? 'نتيجة المحاكاة' : 'Simulation result'}</p>
+            <p className="mt-1 text-[10px] leading-5 text-emerald-100/75">{ar ? 'هذه نتيجة محاكاة فقط؛ المعرّفات والتواريخ المعروضة ليست سجلات على السلسلة، ولا يوجد اشتراك أو استحقاق مدفوع نشط.' : 'Simulation only: the IDs and dates below are not ledger records, and no subscription or paid entitlement is active.'}</p>
             <div className="mt-2 grid gap-2 text-[11px] sm:grid-cols-2">
               <p className="text-slate-300">{ar ? 'الخطة' : 'Plan'}: <span className="font-semibold text-white">{nativePreview.serviceName}</span></p>
               <p className="text-slate-300">Service ID: <span className="font-mono text-white">{nativePreview.serviceId}</span></p>

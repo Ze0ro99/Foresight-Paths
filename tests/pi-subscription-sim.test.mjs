@@ -24,9 +24,13 @@ test('accepts numeric non-negative Developer Portal service IDs only', () => {
   assert.equal(isValidSubscriptionServiceId('https://example.com'), false);
 });
 
-test('calculates conservative Testnet v1 approval windows', () => {
+test('calculates Testnet v1 approval windows, including free-trial time', () => {
   assert.equal(maxSubscriptionPeriods('2629746'), 5);
   assert.equal(maxSubscriptionPeriods('604800'), 25);
+  assert.equal(maxSubscriptionPeriods('2629746', '2629746'), 4);
+  assert.equal(maxSubscriptionPeriods('604800', '604800'), 24);
+  assert.equal(maxSubscriptionPeriods('604800', '999999999999999999'), 0);
+  assert.equal(maxSubscriptionPeriods('604800', '-1'), 0);
   assert.equal(maxSubscriptionPeriods('20000000'), 0);
   assert.equal(maxSubscriptionPeriods('0'), 0);
   assert.equal(maxSubscriptionPeriods('not-a-number'), 0);

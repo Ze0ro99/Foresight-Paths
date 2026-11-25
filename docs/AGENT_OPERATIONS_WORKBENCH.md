@@ -2,7 +2,7 @@
 
 ## Delivered capability
 
-- Pi Browser authentication requests the username scope only. The Edge Function validates the Pi access token with Pi Platform /v2/me and derives the Pioneer UID server-side.
+- Default Pi Browser workbench sign-in requests the username scope only. The Edge Function validates the Pi access token with Pi Platform /v2/me and derives the Pioneer UID server-side. The optional subscription simulator requests the additional payments scope only after the user explicitly starts a simulation.
 - Users can create saved agent profiles from reviewed templates. This workbench does not accept executable tools, arbitrary URLs, or uploaded scripts.
 - Agent runs are bounded, deterministic, read-only analyses over records already stored in the isolated foresight-paths-dev project. The Pi Testnet observer reads the public Horizon ledger only. This workbench slice does not invoke an LLM for every run; it uses reviewed, template-specific analysis rules and source attribution.
 - Results include source freshness, coverage gaps, attributed findings, safe recommendations, and explicit unavailable/partial states.
@@ -30,7 +30,7 @@
 | Arbitrary tool execution or SSRF | Fixed template catalogue; no user-provided URL fetching, code execution, shell, or external targets |
 | Prompt injection in source data | Source records are treated as untrusted data; deterministic renderer; no source content is executed |
 | Secret exposure | Supabase secret key stays inside Edge Function runtime; browser receives only the publishable key |
-| Accidental payment or chain writes | No payments scope, no Pi submit/process, no signing, no transaction builder, no entitlements; Horizon is read-only |
+| Accidental payment or chain writes | Payments scope is requested only after an explicit simulation click; no Pi submit/process, signing, state-changing transaction, or entitlement is exposed |
 | False certainty | Explicit ok/partial/unavailable states, attribution, freshness, null calibrated risk score when unassessed |
 
 ## Known limitations
@@ -38,7 +38,7 @@
 - GDELT ingestion is routed through the fixed-query `news-refresh` Supabase Edge Function. The function validates the project's publishable API key, uses the Supabase-injected secret only inside the Edge runtime, and claims a shared 300-second database refresh lease before fetching or persisting news. It rejects arbitrary URLs, source overrides, and query overrides.
 - GDELT, USGS, and NASA freshness is independent and may be stale or unavailable. The app displays partial/unavailable states and does not synthesize replacement records.
 - Licensed market feeds, macroeconomic series, CVE/NVD enrichment, public-health authority feeds, and dedicated space-object telemetry are not connected by this slice. Therefore market prices, crash probabilities, outbreak forecasts, and extraordinary space claims are not generated.
-- Native Pi Subscriptions are Testnet-only during the documented v1 period and require a Developer Portal Service ID. This delivery stores a preview only. A separate change is required to call the official Subscription SDK simulation method after a real Service ID is registered; no submit or merchant processing is implemented here.
+- Native Pi Subscriptions are Testnet v1 only and require a Developer Portal Service ID. The UI now calls `getService` and `subscribe` with `mode: 'simulate'` only. The public wallet address is user-supplied for simulation and is not linked to the Pioneer UID; no on-chain subscription, payment, or entitlement is created. Maximum periods are calculated from the just-under-180-day approval window after subtracting any free-trial seconds. No `submit`, `process`, merchant signing, or renewal worker is implemented.
 - The existing Soroban generator exports a reviewable design/source artifact and can be submitted as an off-chain governance proposal. No contract is deployed, signed, or invoked with state-changing operations here. The new workbench's `smart_contract` proposal type is not a contract compiler or on-chain registry.
 
 ## Cost and validation
