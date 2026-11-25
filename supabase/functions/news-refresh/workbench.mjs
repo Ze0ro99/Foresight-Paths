@@ -72,7 +72,10 @@ export function normalizeGdeltArticles(rawArticles, now = Date.now()) {
       sourceCountry: cleanText(raw.sourcecountry, 80) || null,
       source: 'GDELT DOC 2.0',
     };
-    unique.set(url, article);
+    const previous = unique.get(url);
+    if (!previous || Date.parse(article.observedAt) > Date.parse(previous.observedAt)) {
+      unique.set(url, article);
+    }
   }
 
   return [...unique.values()]
