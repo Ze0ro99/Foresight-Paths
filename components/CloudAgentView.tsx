@@ -123,7 +123,8 @@ type NativeSubscriptionPreview = {
   periodDays: string;
   trialDays: string;
   periods: number;
-  totalAllowancePi: string;
+  initialChargePi: string;
+  renewalAllowancePi: string;
   autoRenew: boolean;
   subscriptionId: string | null;
   serviceEndAt: string | null;
@@ -495,7 +496,8 @@ export default function CloudAgentView({
       if (price <= BigInt(0) || periodSeconds <= BigInt(0) || trialSeconds < BigInt(0)) throw new Error('SERVICE_DATA_INVALID');
 
       const maxPeriods = maxSubscriptionPeriods(periodSeconds.toString(), trialSeconds.toString());
-      if (maxPeriods < 1 || nativePeriods > maxPeriods) {
+      const approvedPeriods = nativeAutoRenew ? nativePeriods : 1;
+      if (nativeAutoRenew && (maxPeriods < 1 || approvedPeriods > maxPeriods)) {
         throw new Error('APPROVAL_WINDOW_EXCEEDED:' + maxPeriods);
       }
 
@@ -503,7 +505,7 @@ export default function CloudAgentView({
         subscriberAddress.trim(),
         serviceId.trim(),
         nativeAutoRenew,
-        String(nativePeriods),
+        String(approvedPeriods),
         { mode: 'simulate' },
       );
       const simulation = rawSimulation && typeof rawSimulation === 'object'
@@ -521,8 +523,9 @@ export default function CloudAgentView({
         pricePi: formatStroopsAsPi(price.toString()),
         periodDays: (Number(periodSeconds) / 86400).toFixed(2),
         trialDays: (Number(trialSeconds) / 86400).toFixed(2),
-        periods: nativePeriods,
-        totalAllowancePi: formatStroopsAsPi((price * BigInt(nativeAutoRenew ? nativePeriods : 1)).toString()),
+        periods: approvedPeriods,
+        initialChargePi: formatStroopsAsPi((trialSeconds > 0n ? 0n : price).toString()),
+        renewalAllowancePi: formatStroopsAsPi((nativeAutoRenew ? price * BigInt(approvedPeriods) : 0n).toString()),
         autoRenew: typeof simulation.auto_renew === 'boolean' ? simulation.auto_renew : nativeAutoRenew,
         subscriptionId: simulation.sub_id === undefined ? null : String(simulation.sub_id),
         serviceEndAt: toIso(simulation.service_end_ts),
@@ -859,7 +862,8 @@ export default function CloudAgentView({
               <p className="text-slate-300">{ar ? 'السعر لكل فترة' : 'Price per period'}: <span className="font-semibold text-white">{nativePreview.pricePi} Pi</span></p>
               <p className="text-slate-300">{ar ? 'مدة الفترة' : 'Billing period'}: <span className="font-semibold text-white">{nativePreview.periodDays} {ar ? 'يوم' : 'days'}</span></p>
               <p className="text-slate-300">{ar ? 'الفترات' : 'Periods'}: <span className="font-semibold text-white">{nativePreview.periods}</span></p>
-              <p className="text-slate-300">{ar ? 'سقف السماحية المحاكى' : 'Simulated allowance cap'}: <span className="font-semibold text-white">{nativePreview.totalAllowancePi} Pi</span></p>
+              <p className="text-slate-300">{ar ? 'دفعة الفترة الأولى عند الاشتراك الفعلي' : 'Initial period charge if submitted'}: <span className="font-semibold text-white">{nativePreview.initialChargePi} Pi</span></p>
+              <p className="text-slate-300">{ar ? 'سماحية التجديد المستقبلية المحاكاة' : 'Simulated future renewal allowance'}: <span className="font-semibold text-white">{nativePreview.renewalAllowancePi} Pi</span></p>
               <p className="text-slate-300">{ar ? 'التجديد' : 'Auto-renew'}: <span className="font-semibold text-white">{nativePreview.autoRenew ? (ar ? 'مفعّل في المحاكاة' : 'Enabled in simulation') : (ar ? 'غير مفعّل' : 'Disabled')}</span></p>
               <p className="text-slate-300">{ar ? 'التجربة المجانية' : 'Trial period'}: <span className="font-semibold text-white">{nativePreview.trialDays} {ar ? 'يوم' : 'days'}</span></p>
               {nativePreview.subscriptionId && <p className="text-slate-300">Simulation ID: <span className="font-mono text-white">{nativePreview.subscriptionId}</span></p>}
