@@ -92,3 +92,44 @@ test("untrusted URLs are omitted instead of rendered as links", () => {
   assert.equal(result.findings[0].sourceUrl, null);
   assert.equal(result.externalActionsExecuted, 0);
 });
+
+
+test("cyber agent includes source-attributed CISA KEV records without claiming user assets are affected", () => {
+  const result = buildAgentRunSummary("cyber-threat-watch", {
+    sources: [
+      { source_key: "gdelt-doc", enabled: true, display_name: "GDELT", source_type: "news", last_success_at: observedAt },
+      { source_key: "cisa-kev", enabled: true, display_name: "CISA Known Exploited Vulnerabilities", source_type: "research", last_success_at: observedAt },
+    ],
+    news: [],
+    cisaKev: {
+      status: "ok",
+      vulnerabilities: [{
+        cve_id: "CVE-2026-103406",
+        vendor_project: "Hewlett Packard Enterprise (HPE)",
+        product: "Juniper Session Smart Conductor and Session Smart Router",
+        vulnerability_name: "OS Command Injection Vulnerability",
+        date_added: "2026-11-25",
+        short_description: "An OS command injection vulnerability.",
+        required_action: "Apply mitigations in accordance with vendor instructions.",
+        due_date: "2026-11-28",
+        known_ransomware_campaign_use: "Unknown",
+        cwes: ["CWE-78"],
+        source_url: "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+        observed_at: observedAt,
+      }],
+    },
+  }, { observedAt, locale: "en" });
+
+  assert.equal(result.status, "partial");
+  assert.equal(result.coverage.recordsReviewed, 1);
+  assert.ok(result.coverage.sources.some((source) => source.key === "cisa-kev"));
+  assert.match(result.findings[0].title, /CVE-2026-103406/);
+  assert.match(result.findings[0].detail, /Due 2026-11-28/);
+  assert.equal(result.findings[0].evidenceClass, "cisa_kev_known_exploited");
+  assert.equal(result.findings[0].sourceUrl, "https://www.cisa.gov/known-exploited-vulnerabilities-catalog");
+  assert.ok(result.limits.some((item) => /does not prove your assets are affected/i.test(item)));
+  assert.equal(result.externalActionsExecuted, 0);
+  assert.equal(result.transactionsSubmitted, 0);
+  assert.equal(result.entitlementsGranted, 0);
+});
+

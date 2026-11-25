@@ -1,3 +1,6 @@
+import { normalizeCisaKevCatalog } from "./cisa-kev.mjs";
+export { normalizeCisaKevCatalog };
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function safeDate(value) {
@@ -35,6 +38,8 @@ export function buildAgentRunSummary(templateKey, dataset = {}, options = {}) {
   const nowMs = safeDate(observedAt) ?? Date.now();
   const sources = Array.isArray(dataset.sources) ? dataset.sources.filter((item) => item && item.enabled === true) : [];
   const news = Array.isArray(dataset.news) ? dataset.news : [];
+  const cisaKev = dataset.cisaKev && typeof dataset.cisaKev === "object" ? dataset.cisaKev : null;
+  const relevantCisaKev = Array.isArray(cisaKev?.vulnerabilities) ? cisaKev.vulnerabilities : [];
   const hazards = Array.isArray(dataset.hazards) ? dataset.hazards : [];
   const risks = Array.isArray(dataset.risks) ? dataset.risks : [];
   const scenarios = Array.isArray(dataset.scenarios) ? dataset.scenarios : [];
@@ -64,21 +69,28 @@ export function buildAgentRunSummary(templateKey, dataset = {}, options = {}) {
   ];
 
   switch (templateKey) {
-    case "cyber-threat-watch":
+    case "cyber-threat-watch": {
       relevantNews = news.filter((item) => item.category === "cyber");
-      relevantSources = sourceCoverage.filter((source) => source.key === "gdelt-doc");
-      expected = ["gdelt-doc"];
-      dataCount = relevantNews.length;
-      summaryEn = dataCount
-        ? "Found " + dataCount + " source-indexed cyber report(s). These are reports for triage, not confirmation that an attack is active."
-        : "No cyber reports are currently stored in the connected news index. Incident status is unavailable, not clear or safe.";
-      summaryAr = dataCount
-        ? "تم العثور على " + dataCount + " تقريرًا سيبرانيًا مفهرسًا بمصدر. هذه بلاغات للفرز وليست تأكيدًا على وجود هجوم نشط."
-        : "لا توجد حاليًا تقارير سيبرانية محفوظة في فهرس الأخبار المتصل. حالة الحوادث غير متاحة، وهذا لا يعني أن البيئة آمنة.";
+      relevantSources = sourceCoverage.filter((source) => source.key === "gdelt-doc" || source.key === "cisa-kev");
+      expected = ["gdelt-doc", "cisa-kev"];
+      const cisaCount = relevantCisaKev.length;
+      dataCount = relevantNews.length + cisaCount;
+      summaryEn = cisaCount
+        ? "CISA KEV contributes " + cisaCount + " known-exploited CVE record(s)" + (relevantNews.length ? "; GDELT contributes " + relevantNews.length + " indexed cyber report(s)." : ".") + " KEV inclusion does not prove your assets are affected; match vendor, product, version, and exposure."
+        : relevantNews.length
+          ? "Found " + relevantNews.length + " source-indexed cyber report(s), but no cached CISA KEV records are available. Reports are for triage, not confirmation that an attack is active."
+          : "No cyber reports or cached CISA KEV records are available. Incident status is unavailable, not clear or safe.";
+      summaryAr = cisaCount
+        ? "يحتوي كتالوج CISA KEV المخزن على " + cisaCount + " سجلًا لثغرات مستغلة معروفة" + (relevantNews.length ? "، ويحتوي GDELT على " + relevantNews.length + " تقرير سيبراني مفهرس." : ".") + " إدراج الثغرة لا يثبت تأثر أصولك؛ طابق الشركة والمنتج والإصدار والتعرض أولًا."
+        : relevantNews.length
+          ? "تم العثور على " + relevantNews.length + " تقريرًا سيبرانيًا مفهرسًا، لكن لا تتوفر سجلات CISA KEV مخزنة. التقارير للفرز وليست تأكيدًا على هجوم نشط."
+          : "لا تتوفر تقارير سيبرانية أو سجلات CISA KEV مخزنة. حالة الحوادث غير متاحة، وهذا لا يعني أن البيئة آمنة.";
       recommendations = locale === "ar"
-        ? ["احفظ سجلات الهوية والشبكة والتطبيقات مع الطوابع الزمنية وبصمات سلامة الأدلة.", "تحقق من المؤشرات عبر مصدر مستقل قبل إعلان الاختراق أو نسبته إلى جهة.", "اعزل الأصول التي تملكها أو تديرها بتفويض، مع الحفاظ على مسار استعادة موثق.", "راجع الإصدارات المكشوفة، وطبّق التصحيحات المعتمدة، ودوّر بيانات الاعتماد بعد التحقق.", "استعد الخدمات من نسخة سليمة معزولة، واطلب موافقة مسؤول الحادث قبل أي تغيير خارجي."]
-        : ["Preserve identity, network, and application logs with timestamps and evidence-integrity hashes.", "Corroborate indicators with an independent source before declaring or attributing an incident.", "Contain only assets you own or are explicitly authorized to administer, with a documented recovery path.", "Review exposed versions, apply approved patches, and rotate credentials after validation.", "Restore services from a clean isolated backup; require incident-owner approval for external changes."];
+        ? ["طابق الشركة والمنتج والإصدار مع جرد أصول مصرح به قبل اعتبار أي نظام معرضًا.", "رتب المراجعة بحسب تاريخ الاستحقاق والإجراء المنشور من CISA وتعليمات المورد.", "تحقق من المؤشرات عبر مصدر مستقل واحفظ سجلات الهوية والشبكة والتطبيقات والطوابع الزمنية.", "اعزل الأصول التي تملكها أو تديرها بتفويض فقط، مع مسار استعادة موثق.", "اختبر التصحيح في بيئة مرحلية واطلب موافقة مسؤول النظام قبل أي تغيير أو استعادة."]
+        : ["Match vendor, product, affected version, and exposure against an authorized asset inventory before marking an asset vulnerable.", "Prioritize review using the CISA due date and the published CISA/vendor required action.", "Corroborate indicators independently and preserve identity, network, and application logs with timestamps.", "Contain only assets you own or are explicitly authorized to administer, with a documented recovery path.", "Test patches in staging and require the system owner's approval before changes or restoration."];
+      limits.push(localize(locale, "قائمة CISA KEV عالمية ولا تثبت أن أصولك متأثرة؛ لا يتصل هذا الوكيل بجرد أصولك ولا يفحصها.", "The global CISA KEV list does not prove your assets are affected; this agent does not connect to or scan your asset inventory."));
       break;
+    }
 
     case "global-disaster-watch":
       relevantHazards = hazards;
@@ -194,12 +206,29 @@ export function buildAgentRunSummary(templateKey, dataset = {}, options = {}) {
   if (templateKey !== "pi-testnet-observer") status = dataCount > 0 ? "partial" : "unavailable";
 
   if (relevantNews.length > 0) {
-    findings.push(...relevantNews.slice(0, 8).map((item) => ({
+    const newsLimit = templateKey === "cyber-threat-watch" ? 4 : 8;
+    findings.push(...relevantNews.slice(0, newsLimit).map((item) => ({
       title: String(item.title || "Untitled report").slice(0, 240),
       detail: String(item.source_domain || "Source unavailable"),
       evidenceClass: String(item.evidence_class || "unverified"),
       sourceUrl: safeUrl(item.canonical_url),
       observedAt: item.observed_at || item.published_at || null,
+    })));
+  }
+  if (templateKey === "cyber-threat-watch" && relevantCisaKev.length > 0) {
+    findings.push(...relevantCisaKev.slice(0, 8).map((item) => ({
+      title: (String(item.cve_id || "CVE unavailable") + " — " + String(item.vulnerability_name || "Known exploited vulnerability")).slice(0, 240),
+      detail: [
+        String(item.vendor_project || ""),
+        String(item.product || ""),
+        "Added " + String(item.date_added || "unknown"),
+        "Due " + String(item.due_date || "unknown"),
+        item.known_ransomware_campaign_use === "Known" ? "Known ransomware use" : "",
+        String(item.required_action || ""),
+      ].filter(Boolean).join(" · ").slice(0, 1000),
+      evidenceClass: "cisa_kev_known_exploited",
+      sourceUrl: safeUrl(item.source_url),
+      observedAt: item.observed_at || item.catalog_date_released || null,
     })));
   }
   if (relevantHazards.length > 0) {

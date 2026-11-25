@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { buildAgentRunSummary } from "./workbench.mjs";
+import { buildAgentRunSummary, normalizeCisaKevCatalog } from "./workbench.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -195,6 +195,88 @@ async function createAgent(admin: any, uid: string, body: Record<string, unknown
   return json({ ok: true, agent: data });
 }
 
+const CISA_KEV_URL = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json";
+const CISA_KEV_SOURCE_URL = "https://www.cisa.gov/known-exploited-vulnerabilities-catalog";
+
+async function refreshCisaKev(admin: any) {
+  const claim = await admin.rpc("claim_source_refresh", {
+    p_source_key: "cisa-kev",
+    p_min_interval_seconds: 900,
+  });
+
+  if (!claim.error && claim.data === true) {
+    try {
+      const response = await fetch(CISA_KEV_URL, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!response.ok) throw new Error("CISA_KEV_HTTP_" + response.status);
+      const catalog = normalizeCisaKevCatalog(await response.json(), 100);
+      if (!catalog) throw new Error("CISA_KEV_INVALID_CATALOG");
+
+      const observedAt = new Date().toISOString();
+      const rows = catalog.vulnerabilities.map((item: any) => ({
+        cve_id: item.cveID,
+        vendor_project: item.vendorProject,
+        product: item.product,
+        vulnerability_name: item.vulnerabilityName,
+        date_added: item.dateAdded,
+        short_description: item.shortDescription,
+        required_action: item.requiredAction,
+        due_date: item.dueDate,
+        known_ransomware_campaign_use: item.knownRansomwareCampaignUse,
+        forensic_triage: item.forensicTriage,
+        cwes: item.cwes,
+        catalog_version: catalog.catalogVersion,
+        catalog_date_released: catalog.dateReleased,
+        source_url: CISA_KEV_SOURCE_URL,
+        observed_at: observedAt,
+      }));
+
+      const stored = await admin.from("cisa_kev_items").upsert(rows, { onConflict: "cve_id" });
+      if (stored.error) throw new Error("CISA_KEV_UPSERT_FAILED");
+
+      const sourceUpdate = await admin.from("source_registry").update({
+        last_success_at: observedAt,
+        last_error_at: null,
+        last_error_code: null,
+        metadata: {
+          catalog_version: catalog.catalogVersion,
+          catalog_date_released: catalog.dateReleased,
+          catalog_count: catalog.count,
+          validated_count: catalog.validatedCount,
+          cached_records: rows.length,
+        },
+      }).eq("source_key", "cisa-kev");
+      if (sourceUpdate.error) throw new Error("CISA_KEV_SOURCE_STATE_UPDATE_FAILED");
+    } catch (error) {
+      const code = error instanceof Error ? error.message.slice(0, 80) : "CISA_KEV_REFRESH_FAILED";
+      console.warn("CISA KEV refresh failed", { code });
+      await admin.from("source_registry").update({
+        last_error_at: new Date().toISOString(),
+        last_error_code: code,
+      }).eq("source_key", "cisa-kev");
+    }
+  }
+
+  const [itemsResult, sourceResult] = await Promise.all([
+    admin.from("cisa_kev_items")
+      .select("cve_id,vendor_project,product,vulnerability_name,date_added,short_description,required_action,due_date,known_ransomware_campaign_use,forensic_triage,cwes,catalog_version,catalog_date_released,source_url,observed_at")
+      .order("date_added", { ascending: false })
+      .limit(50),
+    admin.from("source_registry")
+      .select("source_key,display_name,source_type,enabled,last_success_at,coverage_note")
+      .eq("source_key", "cisa-kev")
+      .maybeSingle(),
+  ]);
+
+  return {
+    status: itemsResult.error ? "unavailable" : (itemsResult.data?.length ? "ok" : "unavailable"),
+    vulnerabilities: itemsResult.data || [],
+    source: sourceResult.error ? null : sourceResult.data,
+  };
+}
+
 async function runAgent(admin: any, uid: string, body: Record<string, unknown>) {
   const agentId = cleanText(body.agentId, 64);
   if (!isUuid(agentId)) return json({ ok: false, error: "Choose a valid saved agent." }, 400);
@@ -220,13 +302,17 @@ async function runAgent(admin: any, uid: string, body: Record<string, unknown>) 
   ]);
   const queryResults = [sourcesResult, newsResult, hazardsResult, risksResult, scenariosResult];
   const queryUnavailable = queryResults.some((item) => item.error);
+  const cisaKev = agent.template_key === "cyber-threat-watch" ? await refreshCisaKev(admin) : null;
+  const sourceRows = (sourcesResult.data || []).filter((item: any) => item.source_key !== "cisa-kev");
+  if (cisaKev?.source?.enabled === true) sourceRows.push(cisaKev.source);
   const telemetry = agent.template_key === "pi-testnet-observer" ? await readPiTestnetTelemetry() : null;
   const summary = buildAgentRunSummary(agent.template_key, {
-    sources: sourcesResult.data || [],
+    sources: sourceRows,
     news: newsResult.data || [],
     hazards: hazardsResult.data || [],
     risks: risksResult.data || [],
     scenarios: scenariosResult.data || [],
+    cisaKev,
     piTelemetry: telemetry,
   }, {
     locale: body.locale === "ar" ? "ar" : "en",
