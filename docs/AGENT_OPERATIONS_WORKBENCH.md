@@ -73,6 +73,6 @@
 
 - Public dashboard endpoint: `GET /api/cyber/kev`, backed by the official CISA JSON catalog and cached for 15 minutes.
 - Cyber Threat Watch refreshes the same catalog through the Supabase Edge Function at most once per 900 seconds, using the shared `source_registry` refresh lock.
-- The private cache stores the latest 100 normalized CVE records in `public.cisa_kev_items`. RLS is enabled; `anon` and `authenticated` have no table grants. Only the service-role Edge Function can read/write the cache.
+- The private cache stores the latest 100 normalized CVE records in `public.cisa_kev_items`. RLS is enabled with an explicit `service_role` policy; `anon` and `authenticated` have no table grants. Only the service-role Edge Function can read/write the cache.
 - Findings retain CISA attribution, CVE identifier, vendor/product, date added, due date, and the published required action.
 - A KEV entry means CISA lists the CVE as known exploited; it does not prove the user's systems are affected. Asset/version matching requires an authorized asset inventory. No scan, exploit, patch, containment, or external action is performed by this agent.

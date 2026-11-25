@@ -43,7 +43,7 @@ Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_S
 
 1. Register or select a **Testnet app** in the Pi Developer Portal from Pi Browser. Pi locks an app to its registered network; Mainnet requires a separate app and is not enabled here.
 2. Configure the Testnet app's Development URL and use the Sandbox URL provided by the Portal. Authorize the Sandbox app from Pi Utilities in the Pi app when prompted.
-3. The site loads `https://sdk.minepi.com/pi-sdk.js` and initializes SDK v2 with the configured `NEXT_PUBLIC_PI_SANDBOX_MODE`. Direct mode (`sandbox: false`) is permitted only when the server also has `PI_NETWORK=Pi Testnet` and `PI_DIRECT_TESTNET_ENABLED=true`. The UI requests `username` and `payments` scopes.
+3. The site loads `https://sdk.minepi.com/pi-sdk.js` and initializes SDK v2 with the configured `NEXT_PUBLIC_PI_SANDBOX_MODE`. Direct mode (`sandbox: false`) is permitted only when the server also has `PI_NETWORK=Pi Testnet` and `PI_DIRECT_TESTNET_ENABLED=true`. The core Agent Operations Workbench requests the `username` scope only. The separate native Pi Subscription panel requests `username` and `payments` only after the user explicitly starts its simulate-only subscription check; it does not expose a payment submit or process mode.
 4. Copy the Server API Key for that **Testnet app** to Vercel Project → Settings → Environment Variables as a sensitive, server-only `PI_API_KEY` scoped to Preview and branch `feat/v1-testnet-direct-mode`. Never set a `NEXT_PUBLIC_` prefix or put the key into chat/source control.
 5. The current Vercel project protects Preview deployments with Vercel Authentication. Pi Browser access to the protected Preview is not verified; do not disable SSO to make the test pass. Use an explicitly approved public HTTPS Testnet URL for the Portal's Development URL before running Pi Browser end-to-end tests.
 6. Keep `PI_PAYMENTS_ENABLED=false` until public Pi Browser access and identity verification succeed. Then, with explicit owner approval, test only the labelled 0.1 and 1 Test-Pi demo plans. The backend verifies Pioneer identity, payment owner, plan, amount, Testnet network, approval, transaction completion, read-back, and private intent state. No paid credits or entitlements are delivered.
@@ -53,7 +53,8 @@ Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_S
 | Capability | Status |
 | --- | --- |
 | Public Arabic/RTL application | Available |
-| Global sensing | Partial coverage: USGS + NASA EONET polling |
+| Global sensing | Partial coverage: USGS + NASA EONET polling; GDELT may be unavailable independently |
+| Known exploited vulnerabilities | Official CISA KEV catalog, 15-minute cached read-only feed; global entries do not establish that a user's assets are affected |
 | Gemini analysis | Requires `GEMINI_API_KEY` |
 | Pi identity | Requires Pi Browser SDK session and server verification |
 | Pi payment approval/completion | Disabled by default; requires `PI_API_KEY`, a durable ledger, and explicit release flags |
@@ -61,7 +62,7 @@ Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_S
 | Durable prepaid/premium entitlements | Not implemented; requires separate credit/entitlement and refund workflows |
 | x402 paid execution | Disabled; no trusted facilitator/settlement integration |
 | Rewarded-ad grants | Disabled; no verified provider callback |
-| Agent Operations Workbench | Saved agent profiles, bounded read-only analyses, off-chain proposals/votes, recurring-plan previews, and native Pi Testnet subscription simulation. No submit mode, external actions, or chain writes. |
+| Agent Operations Workbench | Pi-authenticated saved agent profiles, bounded read-only analyses, CISA KEV-backed cyber findings, off-chain proposals/votes, recurring-plan previews, and native Pi Testnet subscription simulation. No submit mode, external actions, or chain writes. |
 
 ## 5. Smoke checks
 
