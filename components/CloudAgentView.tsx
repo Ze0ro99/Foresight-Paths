@@ -16,6 +16,7 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { AppLocale, GlobalSensedSignal } from '@/lib/types';
+import { initializePiSdk } from '@/lib/pi-sdk-client';
 import { formatStroopsAsPi, isValidPiWalletAddress, isValidSubscriptionServiceId, maxSubscriptionPeriods } from '@/lib/pi-subscription-sim.mjs';
 
 type PiAuthResponse = {
@@ -249,10 +250,7 @@ export default function CloudAgentView({
         return;
       }
       try {
-        await Promise.resolve(window.Pi.init({
-          version: '2.0',
-          sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false',
-        }));
+        await initializePiSdk(process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false');
         if (!cancelled) setSdkReady(true);
       } catch {
         if (!cancelled) setSdkError(locale === 'ar' ? 'افتح التطبيق داخل Pi Browser على تطبيق Testnet المسجل.' : 'Open this app in Pi Browser under the registered Testnet app.');
