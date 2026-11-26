@@ -65,6 +65,7 @@ export default function CisaKevPanel({ locale }: { locale: string }) {
 
   return (
     <section
+      id="cyber-defense"
       aria-label={ar ? 'الثغرات المستغلة المعروفة من CISA' : 'CISA known exploited vulnerabilities'}
       className="mx-4 my-4 rounded-xl border border-rose-400/15 bg-[#120D16] p-4 md:mx-6"
     >
