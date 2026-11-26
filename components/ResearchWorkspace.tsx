@@ -44,6 +44,7 @@ import CisaKevPanel from './CisaKevPanel';
 import TestnetReadinessPanel from './TestnetReadinessPanel';
 import LinkScannerPanel from './LinkScannerPanel';
 import AgentMarketplacePanel from './AgentMarketplacePanel';
+import { getMapPresentation } from '@/lib/presentation-mode.mjs';
 
 export default function ResearchWorkspace() {
   const [events, setEvents] = useState<LiveEvent[]>(() =>
@@ -209,6 +210,15 @@ export default function ResearchWorkspace() {
   const geodesicArcs = useMemo(
     () => computeGeodesicArcs(localizedEvents, selectedEventId),
     [localizedEvents, selectedEventId]
+  );
+
+  const mapPresentation = useMemo(
+    () => getMapPresentation(isProMode ? 'pro' : 'simple', {
+      events: localizedEvents,
+      forecasts,
+      geodesicArcs,
+    }),
+    [isProMode, localizedEvents, forecasts, geodesicArcs]
   );
 
   const platformMatrix = useMemo(
@@ -598,6 +608,9 @@ export default function ResearchWorkspace() {
         isProMode={isProMode}
         onToggleProMode={() => {
           setIsProMode((value) => !value);
+          setIsStreaming(false);
+          setSelectedItem(null);
+          setIsAddModalOpen(false);
           setIsBackendOpen(false);
         }}
         onOpenAddEvent={() => setIsAddModalOpen(true)}
@@ -652,9 +665,10 @@ export default function ResearchWorkspace() {
       <main>
         <FullScreenMapCanvas
           locale={locale}
-          events={localizedEvents}
-          forecasts={forecasts}
-          geodesicArcs={geodesicArcs}
+          isProMode={isProMode}
+          events={mapPresentation.events}
+          forecasts={mapPresentation.forecasts}
+          geodesicArcs={mapPresentation.geodesicArcs}
           globalSignals={globalSignals}
           lastSenseUtc={lastSenseUtc}
           isSensingNow={isSensingNow}
