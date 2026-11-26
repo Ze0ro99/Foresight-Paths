@@ -108,7 +108,7 @@ async function fetchLiveWithoutPersistence() {
   return NextResponse.json({
     status: 'ok', source: 'CISA Known Exploited Vulnerabilities',
     sourceUrl: CISA_CATALOG_PAGE, feedUrl: CISA_KEV_URL, fetchedAtUtc: new Date().toISOString(),
-    persistence: 'not_configured', freshness: 'live', ...catalog,
+    persistence: 'not_persisted', freshness: 'live', ...catalog,
     note: 'The source was fetched live but could not be cached. CISA KEV is global threat intelligence; inclusion does not prove a particular asset is affected. Verify vendor, product, version, and exposure before taking action.',
   }, { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } });
 }
@@ -136,11 +136,14 @@ export async function GET() {
         const value = typeof item.observed_at === 'string' ? item.observed_at : null;
         return value && (!latest || Date.parse(value) > Date.parse(latest)) ? value : latest;
       }, null);
-      const stale = Boolean(refreshError) || refreshReason === 'refresh_interval_not_elapsed';
+      const lastSuccessAtUtc = cached.source.last_success_at || latestObserved;
+      const lastSuccessMillis = lastSuccessAtUtc ? Date.parse(lastSuccessAtUtc) : NaN;
+      const cacheAgeMs = Number.isFinite(lastSuccessMillis) ? Date.now() - lastSuccessMillis : Number.POSITIVE_INFINITY;
+      const stale = Boolean(refreshError) || cacheAgeMs > REFRESH_SECONDS * 2 * 1000;
       return NextResponse.json({
         status: stale ? 'partial' : 'ok', source: 'CISA Known Exploited Vulnerabilities',
         sourceUrl: CISA_CATALOG_PAGE, feedUrl: CISA_KEV_URL, fetchedAtUtc: new Date().toISOString(),
-        lastSuccessAtUtc: cached.source.last_success_at || latestObserved,
+        lastSuccessAtUtc,
         freshness: stale ? 'cached_or_stale' : 'fresh', persistence: 'supabase_service_role_cache',
         sourceError: refreshError,
         catalogVersion: typeof metadata.catalog_version === 'string' ? metadata.catalog_version : String(cached.rows[0].catalog_version || ''),
