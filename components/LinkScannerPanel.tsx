@@ -64,7 +64,7 @@ export default function LinkScannerPanel({locale}:{locale:AppLocale}){
  };
 
  return (
-  <section aria-labelledby="link-scanner-heading" className="mx-4 my-4 rounded-2xl border border-cyan-400/20 bg-[#0B1220] p-4 shadow-xl md:mx-6 md:p-6">
+  <section id="link-analyzer" aria-labelledby="link-scanner-heading" className="mx-4 my-4 rounded-2xl border border-cyan-400/20 bg-[#0B1220] p-4 shadow-xl md:mx-6 md:p-6">
    <div className="flex flex-wrap items-start justify-between gap-4">
     <div className="flex items-start gap-3"><div className="rounded-xl border border-cyan-300/20 bg-cyan-300/10 p-3 text-cyan-200"><ScanSearch className="h-6 w-6" aria-hidden="true"/></div><div>
      <h2 id="link-scanner-heading" className="text-lg font-bold text-white">{ar?'محلل روابط التطبيقات':'Application Link Analyzer'}</h2>
