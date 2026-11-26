@@ -638,33 +638,6 @@ export default function ResearchWorkspace() {
         </section>
       )}
 
-      <LiveNewsPanel locale={locale} />
-      <CisaKevPanel locale={locale} />
-      <ProjectEconomicsPanel locale={locale} />
-      <LinkScannerPanel locale={locale} />
-      <AgentMarketplacePanel locale={locale} />
-      <TestnetReadinessPanel locale={locale} />
-
-      {apiError && (
-        <div
-          role="alert"
-          className="fixed top-16 left-4 right-4 z-50 mx-auto flex max-w-xl items-center justify-between gap-4 rounded-md border border-[#DC2626] bg-[#1F0910]/95 px-4 py-3 text-xs font-medium text-[#FDA4AF] shadow-xl backdrop-blur-md"
-        >
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{apiError}</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setApiError(null)}
-            aria-label={UI_COPY[locale].closeLabel}
-            className="rounded p-1 hover:bg-white/10"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        </div>
-      )}
-
       {/* Primary Experience: Full-Screen Interactive World Map */}
       <main id="global-intelligence">
         <FullScreenMapCanvas
@@ -699,6 +672,35 @@ export default function ResearchWorkspace() {
           hasMoreSeedEvents={remainingSeedEvents.length > 0}
         />
       </main>
+
+      <LiveNewsPanel locale={locale} />
+      <CisaKevPanel locale={locale} />
+      <ProjectEconomicsPanel locale={locale} />
+      <LinkScannerPanel locale={locale} />
+      <AgentMarketplacePanel locale={locale} />
+      <TestnetReadinessPanel locale={locale} />
+
+      {apiError && (
+        <div
+          role="alert"
+          className="fixed top-16 left-4 right-4 z-50 mx-auto flex max-w-xl items-center justify-between gap-4 rounded-md border border-[#DC2626] bg-[#1F0910]/95 px-4 py-3 text-xs font-medium text-[#FDA4AF] shadow-xl backdrop-blur-md"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{apiError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setApiError(null)}
+            aria-label={UI_COPY[locale].closeLabel}
+            className="rounded p-1 hover:bg-white/10"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      )}
+
+
 
       {/* Instant Full Scenario Slide-Over on Clicking ANY News, Forecast, Global Signal, or Encrypted Map Node */}
       <ScenarioDetailDrawer
