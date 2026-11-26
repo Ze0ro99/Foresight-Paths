@@ -71,10 +71,12 @@ function formatPi(stroops: string) {
 
 function formatPercentBps(value: string) {
   const basisPoints = BigInt(value);
-  const negative = basisPoints < 0n;
+  const zero = BigInt(0);
+  const hundred = BigInt(100);
+  const negative = basisPoints < zero;
   const absolute = negative ? -basisPoints : basisPoints;
-  const whole = absolute / 100n;
-  const fraction = (absolute % 100n).toString().padStart(2, '0').replace(/0+$/, '');
+  const whole = absolute / hundred;
+  const fraction = (absolute % hundred).toString().padStart(2, '0').replace(/0+$/, '');
   return `${negative ? '-' : ''}${whole.toString()}${fraction ? `.${fraction}` : ''}%`;
 }
 
