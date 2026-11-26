@@ -235,7 +235,7 @@ export default function AgentMarketplacePanel({ locale }: { locale: AppLocale })
   }
 
   return (
-    <section aria-labelledby="agent-marketplace-title" className="mx-4 my-4 rounded-2xl border border-violet-400/20 bg-[#0B1220] p-4 shadow-xl md:mx-6 md:p-6">
+    <section id="agent-marketplace" aria-labelledby="agent-marketplace-title" className="mx-4 my-4 rounded-2xl border border-violet-400/20 bg-[#0B1220] p-4 shadow-xl md:mx-6 md:p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <span className="rounded-xl border border-violet-300/20 bg-violet-300/10 p-3 text-violet-200"><Store className="h-6 w-6" aria-hidden="true" /></span>
