@@ -44,6 +44,7 @@ import CisaKevPanel from './CisaKevPanel';
 import TestnetReadinessPanel from './TestnetReadinessPanel';
 import LinkScannerPanel from './LinkScannerPanel';
 import AgentMarketplacePanel from './AgentMarketplacePanel';
+import GatewayNavigation from './GatewayNavigation';
 import ProjectEconomicsPanel from './ProjectEconomicsPanel';
 import { getMapPresentation } from '@/lib/presentation-mode.mjs';
 
@@ -616,6 +617,7 @@ export default function ResearchWorkspace() {
         }}
         onOpenAddEvent={() => setIsAddModalOpen(true)}
       />
+      <GatewayNavigation locale={locale} />
 
       {senseCoverageNote && (
         <section
@@ -641,7 +643,7 @@ export default function ResearchWorkspace() {
       <ProjectEconomicsPanel locale={locale} />
       <LinkScannerPanel locale={locale} />
       <AgentMarketplacePanel locale={locale} />
-      {isProMode && <TestnetReadinessPanel locale={locale} />}
+      <TestnetReadinessPanel locale={locale} />
 
       {apiError && (
         <div
@@ -664,7 +666,7 @@ export default function ResearchWorkspace() {
       )}
 
       {/* Primary Experience: Full-Screen Interactive World Map */}
-      <main>
+      <main id="global-intelligence">
         <FullScreenMapCanvas
           locale={locale}
           isProMode={isProMode}
