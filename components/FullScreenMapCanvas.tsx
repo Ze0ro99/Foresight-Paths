@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Play,
@@ -193,20 +193,17 @@ export default function FullScreenMapCanvas({
   const [zoomMult, setZoomMult] = useState(1);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayerKey, boolean>>({
-    live_events: false,
+    live_events: true,
     global_sensors: true,
     subsea_chokepoints: true,
-    encrypted_maps: false,
+    encrypted_maps: true,
   });
 
-  useEffect(() => {
-    setLayers((current) => ({
-      ...current,
-      live_events: isProMode,
-      encrypted_maps: isProMode,
-    }));
-    setFilterMode('all');
-  }, [isProMode]);
+  const displayLayers = useMemo(() => ({
+    ...layers,
+    live_events: isProMode && layers.live_events,
+    encrypted_maps: isProMode && layers.encrypted_maps,
+  }), [isProMode, layers]);
 
   const copy = UI_COPY[locale];
   const lastEvent = events[events.length - 1] ?? null;
@@ -293,7 +290,7 @@ export default function FullScreenMapCanvas({
       });
     };
 
-    if (layers.live_events) {
+    if (displayLayers.live_events) {
       if (filterMode === 'all' || filterMode === 'events') {
         for (const ev of events) {
           const pt = projectEquirectangular(ev.coordinates.lat, ev.coordinates.lng);
@@ -334,7 +331,7 @@ export default function FullScreenMapCanvas({
       }
     }
 
-    if (layers.encrypted_maps) {
+    if (displayLayers.encrypted_maps) {
       for (const node of ENCRYPTED_MAP_NODES) {
         const pt = projectEquirectangular(node.lat, node.lng);
         const tr = getEncryptedNodeCopy(node, locale);
@@ -351,7 +348,7 @@ export default function FullScreenMapCanvas({
       }
     }
 
-    if (layers.global_sensors) {
+    if (displayLayers.global_sensors) {
       for (const sig of filteredSignals.slice(0, 12)) {
         const pt = projectEquirectangular(sig.lat, sig.lng);
         placeItem({
@@ -374,9 +371,9 @@ export default function FullScreenMapCanvas({
     filteredSignals,
     filterMode,
     copy.forecastTag,
-    layers.live_events,
-    layers.encrypted_maps,
-    layers.global_sensors,
+    displayLayers.live_events,
+    displayLayers.encrypted_maps,
+    displayLayers.global_sensors,
     locale,
   ]);
 
@@ -598,7 +595,7 @@ export default function FullScreenMapCanvas({
             type="button"
             onClick={() => toggleLayer('live_events')}
             className={isProMode ? `whitespace-nowrap rounded border px-2 py-0.5 font-semibold transition-colors ${
-              layers.live_events
+              displayLayers.live_events
                 ? 'border-[#E11D48] bg-[#2D0A18] text-white'
                 : 'border-[#2B2856] text-[#A5B4FC]'
             }` : 'hidden'}
@@ -609,7 +606,7 @@ export default function FullScreenMapCanvas({
             type="button"
             onClick={() => toggleLayer('global_sensors')}
             className={`inline-flex items-center gap-1 whitespace-nowrap rounded border px-2 py-0.5 font-semibold transition-colors ${
-              layers.global_sensors
+              displayLayers.global_sensors
                 ? 'border-[#D97706] bg-[#2A1B08] text-[#FBBF24]'
                 : 'border-[#2B2856] text-[#A5B4FC]'
             }`}
@@ -623,7 +620,7 @@ export default function FullScreenMapCanvas({
             type="button"
             onClick={() => toggleLayer('subsea_chokepoints')}
             className={`inline-flex items-center gap-1 whitespace-nowrap rounded border px-2 py-0.5 font-semibold transition-colors ${
-              layers.subsea_chokepoints
+              displayLayers.subsea_chokepoints
                 ? 'border-[#0891B2] bg-[#082532] text-[#67E8F9]'
                 : 'border-[#2B2856] text-[#A5B4FC]'
             }`}
@@ -635,7 +632,7 @@ export default function FullScreenMapCanvas({
             type="button"
             onClick={() => toggleLayer('encrypted_maps')}
             className={isProMode ? `inline-flex items-center gap-1 whitespace-nowrap rounded border px-2 py-0.5 font-semibold transition-colors ${
-              layers.encrypted_maps
+              displayLayers.encrypted_maps
                 ? 'border-[#9333EA] bg-[#2E1065]/70 text-[#E9D5FF]'
                 : 'border-[#2B2856] text-[#A5B4FC]'
             }` : 'hidden'}
@@ -776,7 +773,7 @@ export default function FullScreenMapCanvas({
               ))}
 
               {/* Layer: Subsea Internet Cables & Chokepoints */}
-              {layers.subsea_chokepoints &&
+              {displayLayers.subsea_chokepoints &&
                 SUBSEA_CABLES.map((cable, idx) => {
                   const p1 = projectEquirectangular(cable.from.lat, cable.from.lng);
                   const p2 = projectEquirectangular(cable.to.lat, cable.to.lng);
@@ -794,7 +791,7 @@ export default function FullScreenMapCanvas({
                   );
                 })}
 
-              {layers.subsea_chokepoints &&
+              {displayLayers.subsea_chokepoints &&
                 MARITIME_CHOKEPOINTS.map((chk) => {
                   const pt = projectEquirectangular(chk.lat, chk.lng);
                   return (
@@ -819,7 +816,7 @@ export default function FullScreenMapCanvas({
                 })}
 
               {/* Layer: Encrypted Maps Q-Clock Sweep + Pi Harmonic Wave */}
-              {layers.encrypted_maps && (
+              {displayLayers.encrypted_maps && (
                 <g>
                   <path
                     d={piWavePath}
@@ -853,7 +850,7 @@ export default function FullScreenMapCanvas({
               )}
 
               {/* Layer: Geodesic Arcs for Observed News & Forecasts */}
-              {layers.live_events &&
+              {displayLayers.live_events &&
                 geodesicArcs.map((arc, idx) => {
                   const p1 = projectEquirectangular(
                     arc.fromCoords.lat,
@@ -897,7 +894,7 @@ export default function FullScreenMapCanvas({
                   );
                 })}
 
-              {layers.live_events &&
+              {displayLayers.live_events &&
                 lastEvent &&
                 forecasts.map((fc, idx) => {
                   const pStart = projectEquirectangular(
@@ -926,8 +923,8 @@ export default function FullScreenMapCanvas({
                 })}
 
               {/* Cross-Map Harmonic Links from Global Sensors -> Nearest Encrypted Node */}
-              {layers.global_sensors &&
-                layers.encrypted_maps &&
+              {displayLayers.global_sensors &&
+                displayLayers.encrypted_maps &&
                 filteredSignals.slice(0, 12).map((sig) => {
                   const node = ENCRYPTED_MAP_NODES.find(
                     (n) => n.id === sig.nearestEncryptedId
@@ -1136,7 +1133,7 @@ export default function FullScreenMapCanvas({
               );
             })}
 
-            {layers.global_sensors &&
+            {displayLayers.global_sensors &&
               filteredSignals.slice(0, 6).map((sig) => {
                 const active = isSelected({ kind: 'global_signal', id: sig.id });
                 return (
@@ -1168,7 +1165,7 @@ export default function FullScreenMapCanvas({
                 );
               })}
 
-            {layers.encrypted_maps &&
+            {displayLayers.encrypted_maps &&
               ENCRYPTED_MAP_NODES.slice(0, 4).map((node) => {
                 const active = isSelected({ kind: 'encrypted_node', id: node.id });
                 const tr = getEncryptedNodeCopy(node, locale);
