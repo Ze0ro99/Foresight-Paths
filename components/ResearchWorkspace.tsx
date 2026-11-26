@@ -44,6 +44,7 @@ import CisaKevPanel from './CisaKevPanel';
 import TestnetReadinessPanel from './TestnetReadinessPanel';
 import LinkScannerPanel from './LinkScannerPanel';
 import AgentMarketplacePanel from './AgentMarketplacePanel';
+import ProjectEconomicsPanel from './ProjectEconomicsPanel';
 import { getMapPresentation } from '@/lib/presentation-mode.mjs';
 
 export default function ResearchWorkspace() {
@@ -637,6 +638,7 @@ export default function ResearchWorkspace() {
 
       <LiveNewsPanel locale={locale} />
       <CisaKevPanel locale={locale} />
+      <ProjectEconomicsPanel locale={locale} />
       <LinkScannerPanel locale={locale} />
       <AgentMarketplacePanel locale={locale} />
       {isProMode && <TestnetReadinessPanel locale={locale} />}
