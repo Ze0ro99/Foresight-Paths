@@ -43,6 +43,7 @@ import LiveNewsPanel from './LiveNewsPanel';
 import CisaKevPanel from './CisaKevPanel';
 import TestnetReadinessPanel from './TestnetReadinessPanel';
 import LinkScannerPanel from './LinkScannerPanel';
+import AgentMarketplacePanel from './AgentMarketplacePanel';
 
 export default function ResearchWorkspace() {
   const [events, setEvents] = useState<LiveEvent[]>(() =>
@@ -624,6 +625,7 @@ export default function ResearchWorkspace() {
       <LiveNewsPanel locale={locale} />
       <CisaKevPanel locale={locale} />
       <LinkScannerPanel locale={locale} />
+      <AgentMarketplacePanel locale={locale} />
       {isProMode && <TestnetReadinessPanel locale={locale} />}
 
       {apiError && (
