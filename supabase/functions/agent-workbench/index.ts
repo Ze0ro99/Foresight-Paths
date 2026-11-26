@@ -462,7 +462,7 @@ async function marketplaceMyListings(admin: any, uid: string) {
     ? await admin.from("user_agents").select("id,name,template_key").eq("owner_pi_uid", uid).in("id", ids)
     : { data: [], error: null };
   if (agents.error) return json({ ok: false, error: "Your owned agents could not be loaded." }, 503);
-  const byId = new Map((agents.data || []).map((agent: any) => [agent.id, agent]));
+  const byId = new Map<string, any>((agents.data || []).map((agent: any) => [agent.id, agent]));
   return json({ ok: true, listings: rows.map((row: any) => ({
     id: row.id, agentId: row.agent_id, agentName: byId.get(row.agent_id)?.name || "Saved agent",
     templateKey: byId.get(row.agent_id)?.template_key || null, title: row.public_title, summary: row.public_summary,
