@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { buildAgentRunSummary, normalizeCisaKevCatalog } from "./workbench.mjs";
+import { MARKETPLACE_BILLING_PERIODS, MARKETPLACE_CATEGORIES, MARKETPLACE_LICENSES, normalizeMarketplaceCapabilityManifest, parseStroops } from "./marketplace.mjs";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -433,6 +434,104 @@ async function createSubscriptionPreview(admin: any, uid: string, body: Record<s
   });
 }
 
+
+const MARKETPLACE_PUBLIC_COLUMNS = "id,public_title,public_summary,category,capability_manifest,price_stroops,currency,billing_period,license_code,creator_label,current_version,capability_level,listing_status,updated_at";
+
+async function marketplaceBrowse(admin: any) {
+  const { data, error } = await admin.from("agent_marketplace_listings")
+    .select(MARKETPLACE_PUBLIC_COLUMNS).eq("listing_status", "published")
+    .order("updated_at", { ascending: false }).limit(100);
+  if (error) return json({ ok: false, error: "The creator catalogue is temporarily unavailable." }, 503);
+  return json({ ok: true, listings: (data || []).map((row: any) => ({
+    id: row.id, title: row.public_title, summary: row.public_summary, category: row.category,
+    capabilities: row.capability_manifest, priceStroops: String(row.price_stroops), currency: "PI",
+    billingPeriod: row.billing_period, license: row.license_code, creatorLabel: row.creator_label,
+    version: row.current_version, capabilityLevel: row.capability_level, status: row.listing_status,
+    updatedAt: row.updated_at,
+  })), notice: "Published capability metadata only. Private missions, source code, credentials, and executable definitions are not exposed." });
+}
+
+async function marketplaceMyListings(admin: any, uid: string) {
+  const { data, error } = await admin.from("agent_marketplace_listings")
+    .select("id,agent_id,public_title,public_summary,category,price_stroops,billing_period,license_code,creator_label,current_version,capability_level,listing_status,updated_at")
+    .eq("owner_pi_uid", uid).order("updated_at", { ascending: false }).limit(50);
+  if (error) return json({ ok: false, error: "Your creator listings could not be loaded." }, 503);
+  const rows = data || [];
+  const ids = rows.map((row: any) => row.agent_id);
+  const agents = ids.length
+    ? await admin.from("user_agents").select("id,name,template_key").eq("owner_pi_uid", uid).in("id", ids)
+    : { data: [], error: null };
+  if (agents.error) return json({ ok: false, error: "Your owned agents could not be loaded." }, 503);
+  const byId = new Map((agents.data || []).map((agent: any) => [agent.id, agent]));
+  return json({ ok: true, listings: rows.map((row: any) => ({
+    id: row.id, agentId: row.agent_id, agentName: byId.get(row.agent_id)?.name || "Saved agent",
+    templateKey: byId.get(row.agent_id)?.template_key || null, title: row.public_title, summary: row.public_summary,
+    category: row.category, priceStroops: String(row.price_stroops), billingPeriod: row.billing_period,
+    license: row.license_code, creatorLabel: row.creator_label, version: row.current_version,
+    capabilityLevel: row.capability_level, status: row.listing_status, updatedAt: row.updated_at,
+  })) });
+}
+
+async function marketplacePublish(admin: any, uid: string, username: string | null, body: Record<string, unknown>) {
+  const agentId = cleanText(body.agentId, 64);
+  const title = cleanText(body.title, 80);
+  const summary = cleanText(body.summary, 600);
+  const category = cleanText(body.category, 40);
+  const priceStroops = parseStroops(body.priceStroops);
+  const billingPeriod = cleanText(body.billingPeriod, 20);
+  const license = cleanText(body.license, 40);
+  const manifest = normalizeMarketplaceCapabilityManifest(body.capabilityManifest);
+  if (!isUuid(agentId)) return json({ ok: false, error: "Choose one of your saved agents." }, 400);
+  if (title.length < 3 || summary.length < 20) return json({ ok: false, error: "Add a public title and a description of at least 20 characters." }, 400);
+  if (!MARKETPLACE_CATEGORIES.includes(category as any)) return json({ ok: false, error: "Choose a supported marketplace category." }, 400);
+  if (priceStroops === null) return json({ ok: false, error: "Enter a valid Pi price with at most seven decimal places." }, 400);
+  if (!MARKETPLACE_BILLING_PERIODS.includes(billingPeriod as any)) return json({ ok: false, error: "Choose a supported rental period." }, 400);
+  if (!MARKETPLACE_LICENSES.includes(license as any)) return json({ ok: false, error: "Choose a supported rental licence." }, 400);
+  if (!manifest) return json({ ok: false, error: "The capability definition is invalid or requests unsupported execution." }, 400);
+  const { data: owned, error: ownershipError } = await admin.from("user_agents")
+    .select("id,status").eq("id", agentId).eq("owner_pi_uid", uid).maybeSingle();
+  if (ownershipError) return json({ ok: false, error: "Agent ownership could not be verified." }, 503);
+  if (!owned || owned.status !== "active") return json({ ok: false, error: "This agent is not owned by this Pioneer or is inactive." }, 403);
+  const { data, error } = await admin.rpc("publish_agent_marketplace_listing", {
+    p_owner_pi_uid: uid, p_agent_id: agentId, p_public_title: title, p_public_summary: summary,
+    p_category: category, p_capability_manifest: manifest, p_price_stroops: priceStroops,
+    p_billing_period: billingPeriod, p_license_code: license,
+    p_creator_label: cleanText(username, 60) || "Pi Pioneer",
+  });
+  if (error || !data) {
+    const code = String(error?.message || "");
+    if (code.includes("AGENT_NOT_OWNED_OR_NOT_MARKETPLACE_ELIGIBLE")) return json({ ok: false, error: "This template is not yet eligible for marketplace publication." }, 409);
+    if (code.includes("UNSUPPORTED_") || code.includes("INVALID_CAPABILITY")) return json({ ok: false, error: "The capability list includes an unsupported permission." }, 400);
+    return json({ ok: false, error: "The listing could not be published. Check that it is a reviewed prototype or demo." }, 503);
+  }
+  return json({ ok: true, listingId: data, notice: "Published capability metadata only. No payment or rental entitlement was created." });
+}
+
+async function marketplaceRentPreview(admin: any, uid: string, body: Record<string, unknown>) {
+  const listingId = cleanText(body.listingId, 64);
+  const idempotencyKey = cleanText(body.idempotencyKey, 64);
+  if (!isUuid(listingId) || !isUuid(idempotencyKey)) return json({ ok: false, error: "A valid listing and request identity are required." }, 400);
+  const { data, error } = await admin.rpc("create_agent_rental_preview", {
+    p_renter_pi_uid: uid, p_listing_id: listingId, p_idempotency_key: idempotencyKey,
+  });
+  if (error || !data) {
+    const code = String(error?.message || "");
+    if (code.includes("CREATOR_CANNOT_RENT_OWN_LISTING")) return json({ ok: false, error: "Creators cannot rent their own listings." }, 409);
+    if (code.includes("IDEMPOTENCY_KEY_REUSED")) return json({ ok: false, error: "This request identifier was already used for a different listing." }, 409);
+    if (code.includes("LISTING_NOT_AVAILABLE")) return json({ ok: false, error: "This listing is no longer available." }, 404);
+    return json({ ok: false, error: "The rental preview could not be created." }, 503);
+  }
+  const { data: intent, error: intentError } = await admin.from("agent_rental_intents")
+    .select("id,listing_id,version_number,status,payment_state,entitlement_granted,created_at")
+    .eq("id", data).eq("renter_pi_uid", uid).single();
+  if (intentError || !intent) return json({ ok: false, error: "The preview receipt could not be loaded." }, 503);
+  return json({ ok: true, intent: {
+    id: intent.id, listingId: intent.listing_id, version: intent.version_number,
+    status: intent.status, paymentState: intent.payment_state,
+    entitlementGranted: intent.entitlement_granted, createdAt: intent.created_at,
+  }, notice: "Preview only. No wallet prompt, payment, source transfer, or entitlement was started." });
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS_HEADERS });
   if (request.method !== "POST") return json({ ok: false, error: "Method not allowed." }, 405);
@@ -476,6 +575,14 @@ Deno.serve(async (request: Request) => {
         return await castVote(admin, user.uid, body);
       case "subscription_preview":
         return await createSubscriptionPreview(admin, user.uid, body);
+      case "marketplace_browse":
+        return await marketplaceBrowse(admin);
+      case "marketplace_my_listings":
+        return await marketplaceMyListings(admin, user.uid);
+      case "marketplace_publish":
+        return await marketplacePublish(admin, user.uid, user.username, body);
+      case "marketplace_rent_preview":
+        return await marketplaceRentPreview(admin, user.uid, body);
       default:
         return json({ ok: false, error: "Unsupported workbench action." }, 400);
     }
