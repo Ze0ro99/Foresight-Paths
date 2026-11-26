@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { initializePiSdk } from '@/lib/pi-sdk-client';
 
 type PiPaymentDto = {
   identifier?: string;
@@ -73,7 +74,7 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
         return;
       }
       window.clearInterval(timer);
-      void Promise.resolve(window.Pi.init({ version: '2.0', sandbox: sdkSandboxMode }))
+      void initializePiSdk(sdkSandboxMode)
         .then(() => {
           if (active) setSdkReady(true);
         })

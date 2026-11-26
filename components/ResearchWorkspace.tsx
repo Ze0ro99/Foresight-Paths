@@ -42,6 +42,7 @@ import AddEventModal from './AddEventModal';
 import LiveNewsPanel from './LiveNewsPanel';
 import CisaKevPanel from './CisaKevPanel';
 import TestnetReadinessPanel from './TestnetReadinessPanel';
+import LinkScannerPanel from './LinkScannerPanel';
 
 export default function ResearchWorkspace() {
   const [events, setEvents] = useState<LiveEvent[]>(() =>
@@ -53,6 +54,7 @@ export default function ResearchWorkspace() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isBackendOpen, setIsBackendOpen] = useState(false);
+  const [isProMode, setIsProMode] = useState(false);
   const [backendTab, setBackendTab] = useState<BackendTab>('semiotics');
   const [isAnalyzingAi, setIsAnalyzingAi] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -592,7 +594,11 @@ export default function ResearchWorkspace() {
         onChangeLocale={setLocale}
         probabilities={probabilities}
         onResetSelection={() => setSelectedItem(null)}
-        onOpenBackendMechanics={() => setIsBackendOpen(true)}
+        isProMode={isProMode}
+        onToggleProMode={() => {
+          setIsProMode((value) => !value);
+          setIsBackendOpen(false);
+        }}
         onOpenAddEvent={() => setIsAddModalOpen(true)}
       />
 
@@ -617,7 +623,8 @@ export default function ResearchWorkspace() {
 
       <LiveNewsPanel locale={locale} />
       <CisaKevPanel locale={locale} />
-      <TestnetReadinessPanel locale={locale} />
+      <LinkScannerPanel locale={locale} />
+      {isProMode && <TestnetReadinessPanel locale={locale} />}
 
       {apiError && (
         <div
@@ -653,6 +660,7 @@ export default function ResearchWorkspace() {
           onToggleAutoSense={() => setAutoSenseEnabled((v) => !v)}
           onSenseNow={() => void handleSenseNow()}
           onOpenCloudAgents={() => {
+            setIsProMode(true);
             setBackendTab('cloud_agent');
             setIsBackendOpen(true);
           }}
@@ -682,6 +690,7 @@ export default function ResearchWorkspace() {
         isAnalyzingAi={isAnalyzingAi}
         onOpenBackendMechanics={() => {
           setSelectedItem(null);
+          setIsProMode(true);
           setBackendTab('semiotics');
           setIsBackendOpen(true);
         }}
@@ -689,7 +698,7 @@ export default function ResearchWorkspace() {
 
       {/* Hidden-by-default Backend Mechanics Modal (Dual Maps, Pi Math, ACH, Cloud SoloHost/Hermes, x402) */}
       <BackendMechanicsModal
-        open={isBackendOpen}
+        open={isProMode && isBackendOpen}
         onClose={() => setIsBackendOpen(false)}
         activeTab={backendTab}
         onChangeTab={setBackendTab}
