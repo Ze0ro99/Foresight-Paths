@@ -48,7 +48,7 @@ export default function TopNav({
 
         {/* Zone 2: Dominant Scenario + 5-Language Selector + Backend Studio */}
         <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
-          <div className="hidden lg:flex items-center gap-2 text-xs text-[#CBD5E1] tabular-nums">
+          <div className={isProMode ? 'hidden lg:flex items-center gap-2 text-xs text-[#CBD5E1] tabular-nums' : 'hidden'}>
             <span className="text-[#A5B4FC]">{copy.dominantLabel}</span>
             <span
               className="font-bold"
@@ -92,7 +92,7 @@ export default function TopNav({
         </div>
 
         {/* Zone 3: 1 Primary CTA */}
-        <div className="shrink-0">
+        <div className={isProMode ? 'shrink-0' : 'hidden'}>
           <button
             type="button"
             onClick={onOpenAddEvent}
