@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   Play,
@@ -53,6 +53,7 @@ import {
 
 interface FullScreenMapCanvasProps {
   locale: AppLocale;
+  isProMode: boolean;
   events: LiveEvent[];
   forecasts: ForecastBranch[];
   geodesicArcs: GeodesicArc[];
@@ -164,6 +165,7 @@ interface PositionedPin {
 
 export default function FullScreenMapCanvas({
   locale,
+  isProMode,
   events,
   forecasts,
   geodesicArcs,
@@ -191,11 +193,20 @@ export default function FullScreenMapCanvas({
   const [zoomMult, setZoomMult] = useState(1);
   const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   const [layers, setLayers] = useState<Record<MapLayerKey, boolean>>({
-    live_events: true,
+    live_events: false,
     global_sensors: true,
     subsea_chokepoints: true,
-    encrypted_maps: true,
+    encrypted_maps: false,
   });
+
+  useEffect(() => {
+    setLayers((current) => ({
+      ...current,
+      live_events: isProMode,
+      encrypted_maps: isProMode,
+    }));
+    setFilterMode('all');
+  }, [isProMode]);
 
   const copy = UI_COPY[locale];
   const lastEvent = events[events.length - 1] ?? null;
@@ -400,6 +411,13 @@ export default function FullScreenMapCanvas({
 
   return (
     <div className="relative flex h-[calc(100vh-3.5rem)] min-h-[580px] w-full flex-col bg-[#07070B]">
+      {isProMode && (
+        <div role="status" className="border-b border-violet-400/20 bg-violet-950/40 px-3 py-2 text-center text-[11px] text-violet-100">
+          {locale === 'ar'
+            ? 'وضع المحترفين: الأحداث والمسارات التوضيحية محاكاة وليست بلاغات حية مؤكدة.'
+            : 'Pro Mode: scenario events and projections are simulations, not verified live incident reports.'}
+        </div>
+      )}
       {/* Compact Mobile-Only Action Strip (<640px) so map keeps maximum vertical space */}
       <div className="z-20 flex sm:hidden items-center justify-between gap-1.5 border-b border-[#1E1B4B] bg-[#0B0B14]/95 px-2.5 py-1.5">
         <div className="flex items-center gap-1.5 overflow-x-auto">
@@ -416,24 +434,28 @@ export default function FullScreenMapCanvas({
             <span>{autoSenseEnabled ? copy.liveShort : copy.pausedShort}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={onOpenCloudAgents}
-            className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 rounded border border-[#9333EA] bg-[#2E1065]/80 px-2 py-1 text-[11px] font-semibold text-white"
-          >
-            <Cloud className="h-3 w-3 text-[#C084FC]" aria-hidden="true" />
-            <span>{copy.cloudShort}</span>
-          </button>
+          {isProMode && (
+            <button
+              type="button"
+              onClick={onOpenCloudAgents}
+              className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 rounded border border-[#9333EA] bg-[#2E1065]/80 px-2 py-1 text-[11px] font-semibold text-white"
+            >
+              <Cloud className="h-3 w-3 text-[#C084FC]" aria-hidden="true" />
+              <span>{copy.cloudShort}</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={onSimulateAiEvent}
-            disabled={isSimulatingAi}
-            className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 rounded bg-[#7C3AED] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
-          >
-            <Sparkles className="h-3 w-3" aria-hidden="true" />
-            <span>Gemini</span>
-          </button>
+          {isProMode && (
+            <button
+              type="button"
+              onClick={onSimulateAiEvent}
+              disabled={isSimulatingAi}
+              className="inline-flex items-center gap-1 whitespace-nowrap shrink-0 rounded bg-[#7C3AED] px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50"
+            >
+              <Sparkles className="h-3 w-3" aria-hidden="true" />
+              <span>Gemini</span>
+            </button>
+          )}
         </div>
 
         <button
@@ -544,24 +566,28 @@ export default function FullScreenMapCanvas({
             <span>{copy.scanNow}</span>
           </button>
 
-          <button
-            type="button"
-            onClick={onOpenCloudAgents}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-md border border-[#9333EA] bg-[#2E1065]/70 px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#7C3AED] transition-colors"
-          >
-            <Cloud className="h-3.5 w-3.5 text-[#C084FC]" aria-hidden="true" />
-            <span>{copy.cloudAgentShort}</span>
-          </button>
+          {isProMode && (
+            <button
+              type="button"
+              onClick={onOpenCloudAgents}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-md border border-[#9333EA] bg-[#2E1065]/70 px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#7C3AED] transition-colors"
+            >
+              <Cloud className="h-3.5 w-3.5 text-[#C084FC]" aria-hidden="true" />
+              <span>{copy.cloudAgentShort}</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={onSimulateAiEvent}
-            disabled={isSimulatingAi}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-md bg-[#7C3AED] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#6D28D9] disabled:opacity-50 transition-colors"
-          >
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{isSimulatingAi ? copy.simulatingGemini : copy.simulateGemini}</span>
-          </button>
+          {isProMode && (
+            <button
+              type="button"
+              onClick={onSimulateAiEvent}
+              disabled={isSimulatingAi}
+              className="inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 rounded-md bg-[#7C3AED] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#6D28D9] disabled:opacity-50 transition-colors"
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>{isSimulatingAi ? copy.simulatingGemini : copy.simulateGemini}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -571,11 +597,11 @@ export default function FullScreenMapCanvas({
           <button
             type="button"
             onClick={() => toggleLayer('live_events')}
-            className={`whitespace-nowrap rounded border px-2 py-0.5 font-semibold transition-colors ${
+            className={isProMode ? `whitespace-nowrap rounded border px-2 py-0.5 font-semibold transition-colors ${
               layers.live_events
                 ? 'border-[#E11D48] bg-[#2D0A18] text-white'
                 : 'border-[#2B2856] text-[#A5B4FC]'
-            }`}
+            }` : 'hidden'}
           >
             {copy.layerEvents} ({events.length + forecasts.length})
           </button>
@@ -608,11 +634,11 @@ export default function FullScreenMapCanvas({
           <button
             type="button"
             onClick={() => toggleLayer('encrypted_maps')}
-            className={`inline-flex items-center gap-1 whitespace-nowrap rounded border px-2 py-0.5 font-semibold transition-colors ${
+            className={isProMode ? `inline-flex items-center gap-1 whitespace-nowrap rounded border px-2 py-0.5 font-semibold transition-colors ${
               layers.encrypted_maps
                 ? 'border-[#9333EA] bg-[#2E1065]/70 text-[#E9D5FF]'
                 : 'border-[#2B2856] text-[#A5B4FC]'
-            }`}
+            }` : 'hidden'}
           >
             <Compass className="h-3 w-3" aria-hidden="true" />
             <span>
@@ -622,7 +648,7 @@ export default function FullScreenMapCanvas({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-[11px] tabular-nums">
-          <div className="hidden sm:flex items-center gap-1">
+          <div className={isProMode ? "hidden sm:flex items-center gap-1" : "hidden"}>
             {(['all', 'events', 'forecasts'] as MapFilterMode[]).map((m) => (
               <button
                 key={m}
@@ -644,7 +670,7 @@ export default function FullScreenMapCanvas({
           <button
             type="button"
             onClick={onToggleStream}
-            className="inline-flex items-center gap-1 rounded border border-[#2B2856] px-2 py-0.5 text-[#CBD5E1] hover:text-white"
+            className={isProMode ? "inline-flex items-center gap-1 rounded border border-[#2B2856] px-2 py-0.5 text-[#CBD5E1] hover:text-white" : "hidden"}
           >
             {isStreaming ? (
               <Pause className="h-3 w-3" aria-hidden="true" />
@@ -658,7 +684,7 @@ export default function FullScreenMapCanvas({
             type="button"
             onClick={onStepForward}
             disabled={!hasMoreSeedEvents}
-            className="inline-flex items-center gap-1 rounded border border-[#2B2856] px-2 py-0.5 text-[#CBD5E1] hover:text-white disabled:opacity-40"
+            className={isProMode ? "inline-flex items-center gap-1 rounded border border-[#2B2856] px-2 py-0.5 text-[#CBD5E1] hover:text-white disabled:opacity-40" : "hidden"}
           >
             <SkipForward className="h-3 w-3" aria-hidden="true" />
             <span>{copy.nextEvent}</span>
@@ -668,7 +694,7 @@ export default function FullScreenMapCanvas({
             type="button"
             onClick={onResetTimeline}
             aria-label={copy.resetMap}
-            className="inline-flex items-center gap-1 rounded border border-[#2B2856] px-2 py-0.5 text-[#A5B4FC] hover:text-white"
+            className={isProMode ? "inline-flex items-center gap-1 rounded border border-[#2B2856] px-2 py-0.5 text-[#A5B4FC] hover:text-white" : "hidden"}
           >
             <RotateCcw className="h-3 w-3" aria-hidden="true" />
             <span>{copy.resetMap}</span>
@@ -676,7 +702,7 @@ export default function FullScreenMapCanvas({
 
           {lastSenseUtc && (
             <span className="font-latin-math text-[10px] text-[#4ADE80]">
-              UTC {lastSenseUtc.slice(11, 19)} · Q#{sweep.sector}
+              UTC {lastSenseUtc.slice(11, 19)}{isProMode ? ` · Q#${sweep.sector}` : ''}
             </span>
           )}
         </div>
@@ -1075,8 +1101,8 @@ export default function FullScreenMapCanvas({
       <div className="z-20 border-t border-[#2B2856] bg-[#0B0B14]/95 px-3 py-2 sm:px-6 sm:py-3 backdrop-blur-md">
         <div className="mx-auto max-w-[1600px]">
           <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-[#A5B4FC]">
-            <span>{copy.feedHeader}</span>
-            <span className="hidden sm:inline text-[#CBD5E1]">{copy.feedLegend}</span>
+            <span>{isProMode ? copy.feedHeader : (locale === 'ar' ? 'إشارات موثقة من المصادر' : 'Source-attributed signals')}</span>
+            {isProMode && <span className="hidden sm:inline text-[#CBD5E1]">{copy.feedLegend}</span>}
           </div>
 
           <div className="flex gap-2.5 overflow-x-auto pb-1">
@@ -1132,7 +1158,7 @@ export default function FullScreenMapCanvas({
                         {sig.source}
                       </span>
                       <span className="font-latin-math font-bold">
-                        {sig.severityLabel} · π={sig.piResonanceIndex}
+                        {sig.severityLabel}{isProMode ? ` · π=${sig.piResonanceIndex}` : ''}
                       </span>
                     </div>
                     <div className="mt-1 line-clamp-2 text-xs font-bold leading-snug text-white">
