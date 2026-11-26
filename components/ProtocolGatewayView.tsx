@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Server,
   Activity,
@@ -16,6 +16,7 @@ import {
   PIRC_STANDARDS_I18N,
 } from '@/lib/i18n-data';
 import { AppLocale } from '@/lib/types';
+import { initializePiSdk } from '@/lib/pi-sdk-client';
 
 declare global {
   interface Window {
@@ -436,7 +437,6 @@ export default function ProtocolGatewayView({
   const [sdkHttpStatus, setSdkHttpStatus] = useState<number | null>(null);
   const [sdkResponseJson, setSdkResponseJson] = useState<string>('');
   const [loadingSdkCall, setLoadingSdkCall] = useState(false);
-  const piInitialized = useRef(false);
 
   const refreshGateways = async () => {
     try {
@@ -555,13 +555,7 @@ export default function ProtocolGatewayView({
         return;
       }
 
-      if (!piInitialized.current) {
-        window.Pi.init({
-          version: '2.0',
-          sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false',
-        });
-        piInitialized.current = true;
-      }
+      await initializePiSdk(process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false');
       const auth = await window.Pi.authenticate(
         ['username', 'payments'],
         (payment) => {
