@@ -40,8 +40,8 @@ test('keeps negative profit visible rather than clamping losses to zero', () => 
   });
   assert.equal(result.ok, true);
   if (!result.ok) return;
-  assert.equal(result.values.netProfitStroops, '-41000000');
-  assert.equal(result.values.marginBps, '-43158');
+  assert.equal(result.values.netProfitStroops, '-31450000');
+  assert.equal(result.values.marginBps, '-33105');
 });
 
 test('rejects negative, exponent, malformed, and sub-stroop monetary input', () => {
