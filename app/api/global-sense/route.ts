@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSupabaseServerHeaders } from '@/lib/supabase-server-headers.mjs';
 import { enrichGlobalSignal } from '@/lib/world-monitor-engine';
 import { GlobalSensedSignal } from '@/lib/types';
 
@@ -35,8 +36,7 @@ async function persistHazards(
   if (rows.length === 0) return 'no_new_rows';
 
   const headers = {
-    apikey: key,
-    Authorization: 'Bearer ' + key,
+    ...getSupabaseServerHeaders(key),
     'Content-Type': 'application/json',
     Accept: 'application/json',
   };
