@@ -20,6 +20,7 @@ const CACHE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 const CATEGORIES = new Set([
   "disasters", "conflict", "politics", "economy", "health", "cyber", "science", "energy", "other",
 ]);
+type NewsArticle = ReturnType<typeof normalizeGdeltArticles>[number];
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: CORS_HEADERS });
@@ -171,7 +172,7 @@ async function fallback(
   sourceCauseCode: string | null = null,
   sourceHttpStatus: number | null = null,
 ) {
-  let articles = [];
+  let articles: NewsArticle[] = [];
   try {
     articles = await loadCachedNews(base, credential);
   } catch {
@@ -289,7 +290,7 @@ Deno.serve(async (request: Request) => {
       p_rows: rows,
     });
     if (articles.length === 0) {
-      let cached = [];
+      let cached: NewsArticle[] = [];
       try {
         cached = await loadCachedNews(base, credential);
       } catch {
