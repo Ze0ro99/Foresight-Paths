@@ -16,6 +16,7 @@ import {
   PIRC_STANDARDS_I18N,
 } from '@/lib/i18n-data';
 import { AppLocale } from '@/lib/types';
+import { getPiAuthScopes } from '@/lib/pi-auth-scopes.mjs';
 import { initializePiSdk } from '@/lib/pi-sdk-client';
 
 declare global {
@@ -557,7 +558,7 @@ export default function ProtocolGatewayView({
 
       await initializePiSdk(process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false');
       const auth = await window.Pi.authenticate(
-        ['username', 'payments'],
+        getPiAuthScopes(),
         (payment) => {
           setSdkResponseJson(
             JSON.stringify(
