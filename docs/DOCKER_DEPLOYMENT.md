@@ -5,10 +5,11 @@ This repository is a Next.js application configured for standalone output. The i
 ## Configure
 
 1. Copy `.env.example` to `.env` and fill required values. Compose requires this file.
-2. Use `PI_NETWORK=Pi Testnet`, `PI_SANDBOX_MODE=false`, `PI_DIRECT_TESTNET_ENABLED=true`, and `NEXT_PUBLIC_PI_SANDBOX_MODE=false` for the registered Testnet app. All payment, entitlement, and Mainnet approval flags remain false. This enables direct Testnet SDK identity only; it does not enable payment execution.
-3. Set `GEMINI_MODEL=gemini-3.8-flash` unless you have deliberately selected another model supported by your Google AI Studio key. Set `GEMINI_API_KEY` only in the server-side `.env` file.
-4. Supply `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` at build time when the browser bundle requires them. They are public values.
-5. Never put `SUPABASE_SERVICE_ROLE_KEY`, `PI_API_KEY`, `GEMINI_API_KEY`, or other private credentials in build args, image labels, source control, or any `NEXT_PUBLIC_*` variable.
+2. Use `PI_NETWORK=Pi Testnet`, `PI_SANDBOX_MODE=false`, `PI_DIRECT_TESTNET_ENABLED=true`, and `NEXT_PUBLIC_PI_SANDBOX_MODE=false` for the registered Testnet app. This enables direct Testnet SDK identity only; it does not enable payment execution.
+3. Keep `NEXT_PUBLIC_PI_PAYMENTS_ENABLED=false` so identity login requests only the `username` scope. Leave server payment, ledger, entitlement, and Mainnet flags false.
+4. Set `GEMINI_MODEL=gemini-3.8-flash` unless you have deliberately selected another model supported by your Google AI Studio key. Set `GEMINI_API_KEY` only in the server-side `.env` file.
+5. Supply `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` at build time when the browser bundle requires them. They are public values.
+6. Never put `SUPABASE_SERVICE_ROLE_KEY`, `PI_API_KEY`, `GEMINI_API_KEY`, or other private credentials in build args, image labels, source control, or any `NEXT_PUBLIC_*` variable.
 
 ## Build and run
 
