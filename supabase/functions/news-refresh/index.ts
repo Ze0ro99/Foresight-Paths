@@ -1,6 +1,9 @@
 import { getSupabaseAdminCredential } from "../_shared/supabase-admin-key.mjs";
 import {
   GDELT_BROAD_QUERY,
+  GDELT_FALLBACK_QUERY,
+  GDELT_PRIMARY_TIMEOUT_MS,
+  GDELT_FALLBACK_TIMEOUT_MS,
   GDELT_REFRESH_INTERVAL_SECONDS,
   classifyGdeltUpstreamError,
   normalizeGdeltArticles,
@@ -138,6 +141,72 @@ async function loadCachedNews(
   });
 }
 
+type GdeltFetchResult = {
+  articles: ReturnType<typeof normalizeGdeltArticles>;
+  error: string | null;
+  causeCode: string | null;
+  httpStatus: number | null;
+};
+
+async function fetchGdeltArticles(
+  query: string,
+  maxRecords: string,
+  timeoutMs: number,
+): Promise<GdeltFetchResult> {
+  const params = new URLSearchParams({
+    query,
+    mode: "ArtList",
+    format: "json",
+    maxrecords: maxRecords,
+    sort: "DateDesc",
+    timespan: "7d",
+  });
+
+  try {
+    const response = await fetch("https://api.gdeltproject.org/api/v2/doc/doc?" + params.toString(), {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    const contentType = response.headers.get("content-type") || "";
+    const raw = await response.text();
+    if (!response.ok) {
+      return {
+        articles: [],
+        error: classifyGdeltUpstreamError(response.status, contentType, raw),
+        causeCode: null,
+        httpStatus: response.status,
+      };
+    }
+
+    try {
+      const payload = JSON.parse(raw) as { articles?: unknown[] };
+      if (!payload || !Array.isArray(payload.articles)) throw new TypeError("missing articles");
+      return {
+        articles: normalizeGdeltArticles(payload.articles),
+        error: null,
+        causeCode: null,
+        httpStatus: response.status,
+      };
+    } catch {
+      return {
+        articles: [],
+        error: classifyGdeltUpstreamError(response.status, contentType, raw),
+        causeCode: null,
+        httpStatus: response.status,
+      };
+    }
+  } catch (error) {
+    const details = error as Error & { cause?: { code?: string } };
+    return {
+      articles: [],
+      error: "GDELT_" + (error instanceof Error ? error.name : "UPSTREAM_ERROR"),
+      causeCode: typeof details.cause?.code === "string" ? details.cause.code.slice(0, 80) : null,
+      httpStatus: null,
+    };
+  }
+}
+
 async function markSourceError(
   base: string,
   credential: { key: string; legacy: boolean },
@@ -238,51 +307,32 @@ Deno.serve(async (request: Request) => {
     return fallback(base, credential, "GDELT_REFRESH_GUARD_UNAVAILABLE");
   }
 
-  const params = new URLSearchParams({
-    query: GDELT_BROAD_QUERY,
-    mode: "ArtList",
-    format: "json",
-    maxrecords: "30",
-    sort: "DateDesc",
-    timespan: "7d",
-  });
+  const primary = await fetchGdeltArticles(GDELT_BROAD_QUERY, "30", GDELT_PRIMARY_TIMEOUT_MS);
+  let selected = primary;
 
-  let raw: string;
-  let responseStatus = 0;
-  let contentType = "";
-  try {
-    const response = await fetch("https://api.gdeltproject.org/api/v2/doc/doc?" + params.toString(), {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-      signal: AbortSignal.timeout(10000),
-    });
-    responseStatus = response.status;
-    contentType = response.headers.get("content-type") || "";
-    raw = await response.text();
-    if (!response.ok) {
-      const code = classifyGdeltUpstreamError(response.status, contentType, raw);
+  if (primary.error || primary.articles.length === 0) {
+    const secondary = await fetchGdeltArticles(GDELT_FALLBACK_QUERY, "20", GDELT_FALLBACK_TIMEOUT_MS);
+    if (!secondary.error && secondary.articles.length > 0) {
+      selected = secondary;
+    } else if (primary.error && secondary.error) {
+      const code = secondary.error || primary.error;
       await markSourceError(base, credential, code);
-      return await fallback(base, credential, code, null, response.status);
+      return await fallback(
+        base,
+        credential,
+        code,
+        secondary.causeCode || primary.causeCode,
+        secondary.httpStatus ?? primary.httpStatus,
+      );
+    } else if (primary.error && !secondary.error) {
+      // The narrower query succeeded but returned no current articles.
+      selected = secondary;
     }
-  } catch (error) {
-    const details = error as Error & { cause?: { code?: string } };
-    const code = "GDELT_" + (error instanceof Error ? error.name : "UPSTREAM_ERROR");
-    const causeCode = typeof details.cause?.code === "string" ? details.cause.code.slice(0, 80) : null;
-    await markSourceError(base, credential, code);
-    return await fallback(base, credential, code, causeCode);
   }
 
-  let payload: { articles?: unknown[] };
-  try {
-    payload = JSON.parse(raw) as { articles?: unknown[] };
-    if (!payload || !Array.isArray(payload.articles)) throw new TypeError("missing articles");
-  } catch {
-    const code = classifyGdeltUpstreamError(responseStatus, contentType, raw);
-    await markSourceError(base, credential, code);
-    return await fallback(base, credential, code, null, responseStatus);
-  }
+  const responseStatus = selected.httpStatus ?? primary.httpStatus ?? 0;
+  const articles = selected.articles;
 
-  const articles = normalizeGdeltArticles(payload.articles);
   try {
     const rows = toGdeltPersistenceRows(articles);
     const persisted = await adminRpc<number>(base, credential, "ingest_news_batch", {
