@@ -46,7 +46,7 @@ npm test
 npm run build
 ```
 
-The built-in Node test runner covers Gemini model selection, GDELT response validation/fallback query shape, Pi Testnet readiness, payment recovery validation, and exact Pi stroop fee conversion. Route-level end-to-end inference and Pi Browser flows still require credentialed runtime tests.
+The built-in Node test runner covers Gemini model selection, GDELT response validation/fallback query shape, Pi Testnet readiness, payment recovery validation, and exact Pi stroop fee conversion. The repository does not yet commit an npm lockfile; CI and Docker currently resolve dependencies with npm install. Route-level end-to-end inference and Pi Browser flows still require credentialed runtime tests.
 
 ## Deployment
 
