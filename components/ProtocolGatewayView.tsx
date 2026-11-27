@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Server,
   Activity,
@@ -16,6 +16,8 @@ import {
   PIRC_STANDARDS_I18N,
 } from '@/lib/i18n-data';
 import { AppLocale } from '@/lib/types';
+import { getPiAuthScopes } from '@/lib/pi-auth-scopes.mjs';
+import { initializePiSdk } from '@/lib/pi-sdk-client';
 
 declare global {
   interface Window {
@@ -154,7 +156,7 @@ const PROTOCOL_UI: Record<
       },
     ],
     separationTitle:
-      'الفصل المعماري الصريح: معايير PiNetwork/PiRC الرسمية مقابل مقترحات Ze0ro99/PiRC المجتمعية',
+      'الفصل بين تكامل Pi الرسمي ومقترحات PiRC المجتمعية الخاصة بالمشروع',
     docsSectionTitle: 'الوثائق الهندسية ومعايير الأمان المعتمدة (هاكاثون Pi Next)',
     docsSectionSub: 'أربع وثائق مرجعية تغطي الحدود المعمارية والاقتصاد المزدوج وحماية التسعير وخطة التسليم',
   },
@@ -218,7 +220,7 @@ const PROTOCOL_UI: Record<
       },
     ],
     separationTitle:
-      'Explicit Architectural Separation: Official PiNetwork/PiRC vs Community Ze0ro99/PiRC',
+      'Separation of Official Pi Integrations and This Project’s Community PiRC Proposals',
     docsSectionTitle: 'Pi Next Engineering & Safety Reference Documents',
     docsSectionSub: 'Four core blueprints covering ecosystem boundaries, 0.0001 Pi economics, server contract hardening, and submission readiness',
   },
@@ -282,7 +284,7 @@ const PROTOCOL_UI: Record<
       },
     ],
     separationTitle:
-      'Séparation Architecturale : PiNetwork/PiRC Officiel vs Propositions Ze0ro99/PiRC',
+      'Séparation entre intégrations Pi officielles et propositions communautaires PiRC du projet',
     docsSectionTitle: 'Documents d’Architecture & Sécurité Hackathon Pi Next',
     docsSectionSub: 'Quatre références détaillant frontières, économie 0,0001 Pi, garde-fous serveur et livraison',
   },
@@ -346,7 +348,7 @@ const PROTOCOL_UI: Record<
       },
     ],
     separationTitle:
-      'Pemisahan Arsitektur Tegas: Standar Resmi PiNetwork/PiRC vs Usulan Komunitas Ze0ro99/PiRC',
+      'Pemisahan integrasi Pi resmi dari usulan komunitas PiRC milik proyek ini',
     docsSectionTitle: '4 Dokumen Referensi Teknis & Keamanan Hackathon Pi Next',
     docsSectionSub: 'Cetak biru pemisahan standar, ekonomi 0.0001 Pi, kontrak keamanan server, dan jadwal rilis',
   },
@@ -410,7 +412,7 @@ const PROTOCOL_UI: Record<
       },
     ],
     separationTitle:
-      'Phân Tách Kiến Trúc Rõ Ràng: Chuẩn Chính Thức PiNetwork/PiRC Với Đề Xuất Ze0ro99/PiRC',
+      'Tách biệt tích hợp Pi chính thức và đề xuất PiRC cộng đồng của dự án',
     docsSectionTitle: '4 Tài Liệu Tham Chiếu Kỹ Thuật & An Toàn Hackathon Pi Next',
     docsSectionSub: 'Ranh giới tiêu chuẩn, kinh tế gói 0,0001 Pi, bảo mật hợp đồng máy chủ và kế hoạch bàn giao',
   },
@@ -436,7 +438,6 @@ export default function ProtocolGatewayView({
   const [sdkHttpStatus, setSdkHttpStatus] = useState<number | null>(null);
   const [sdkResponseJson, setSdkResponseJson] = useState<string>('');
   const [loadingSdkCall, setLoadingSdkCall] = useState(false);
-  const piInitialized = useRef(false);
 
   const refreshGateways = async () => {
     try {
@@ -555,15 +556,9 @@ export default function ProtocolGatewayView({
         return;
       }
 
-      if (!piInitialized.current) {
-        window.Pi.init({
-          version: '2.0',
-          sandbox: process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false',
-        });
-        piInitialized.current = true;
-      }
+      await initializePiSdk(process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false');
       const auth = await window.Pi.authenticate(
-        ['username', 'payments'],
+        getPiAuthScopes(),
         (payment) => {
           setSdkResponseJson(
             JSON.stringify(
