@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { inspectPublicUrl, UrlInspectionError } from '@/lib/safe-url-inspector.mjs';
+import { getSupabaseServerHeaders, getSupabaseServerKeyKind } from '@/lib/supabase-server-headers.mjs';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -16,6 +17,8 @@ function jsonError(error:string,status:number,headers?:HeadersInit){
 function getSupabaseConfig(){
   const base=process.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),key=process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
   if(!base||!key||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(base))return null;
+  const keyKind = getSupabaseServerKeyKind(key);
+  if (keyKind !== 'secret_key' && keyKind !== 'legacy_service_role_jwt') return null;
   return {base:base.replace(/\/$/,''),key};
 }
 async function verifyPioneer(token:string):Promise<string|null>{
@@ -29,8 +32,7 @@ async function verifyPioneer(token:string):Promise<string|null>{
 async function consumeInspectionSlot(uid:string):Promise<{allowed:boolean;retryAfterSeconds:number}|null>{
   const config=getSupabaseConfig();if(!config)return null;
   const subjectHash=createHash('sha256').update('foresight-paths:url-inspection:v1:'+uid).digest('hex');
-  const headers:Record<string,string>={apikey:config.key,'Content-Type':'application/json',Accept:'application/json'};
-  if(!config.key.startsWith('sb_secret_'))headers.Authorization='Bearer '+config.key;
+  const headers:Record<string,string>={...getSupabaseServerHeaders(config.key),'Content-Type':'application/json',Accept:'application/json'};
   try{
     const response=await fetch(config.base+'/rest/v1/rpc/consume_url_inspection_slot',{
       method:'POST',headers,body:JSON.stringify({p_subject_hash:subjectHash,p_limit:RATE_LIMIT,p_window_seconds:RATE_WINDOW_SECONDS}),
