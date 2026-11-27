@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { getPiAuthScopes } from '@/lib/pi-auth-scopes.mjs';
 
 type PiPaymentDto = {
   identifier?: string;
@@ -117,7 +118,7 @@ export default function PiSandboxPaymentPanel({ locale }: { locale: string }) {
     setBusy(true);
     setMessage('');
     try {
-      const auth = await window.Pi.authenticate(['username', 'payments'], handleIncompletePaymentFound);
+      const auth = await window.Pi.authenticate(getPiAuthScopes(), handleIncompletePaymentFound);
       const response = await fetch('/api/pi/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${auth.accessToken}` },
