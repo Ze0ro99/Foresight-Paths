@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSupabaseServerHeaders, getSupabaseServerKeyKind } from '@/lib/supabase-server-headers.mjs';
 import { normalizeCisaKevCatalog } from '@/lib/cisa-kev.mjs';
 import { fromCisaKevCacheRows, toCisaKevCacheRows } from '@/lib/cisa-kev-cache.mjs';
 
@@ -10,7 +11,7 @@ const SOURCE_KEY = 'cisa-kev';
 const REFRESH_SECONDS = 900;
 const CACHE_SELECT = ['cve_id','vendor_project','product','vulnerability_name','date_added','short_description','required_action','due_date','known_ransomware_campaign_use','forensic_triage','cwes','catalog_version','catalog_date_released','source_url','observed_at'].join(',');
 
-type AdminCredential = { key: string; legacy: boolean };
+type AdminCredential = { key: string };
 type CachedSource = { last_success_at?: string | null; metadata?: Record<string, unknown> };
 
 function jsonError(status: number, sourceError: string, sourceHttpStatus?: number) {
@@ -27,11 +28,11 @@ function adminCredential(): AdminCredential | null {
     try {
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       const secret = parsed.default;
-      if (typeof secret === 'string' && secret.startsWith('sb_secret_') && secret.length > 20) return { key: secret, legacy: false };
+      if (getSupabaseServerKeyKind(secret) === 'secret_key') return { key: (secret as string).trim() };
     } catch { /* legacy service-role fallback below */ }
   }
   const legacy = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
-  return legacy && legacy.length > 20 ? { key: legacy, legacy: true } : null;
+  return getSupabaseServerKeyKind(legacy) === 'legacy_service_role_jwt' ? { key: legacy! } : null;
 }
 function supabaseBaseUrl(): string | null {
   const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
@@ -43,10 +44,11 @@ function supabaseBaseUrl(): string | null {
   } catch { return null; }
 }
 function adminHeaders(credential: AdminCredential, json = false): Record<string, string> {
-  const headers: Record<string, string> = { apikey: credential.key, Accept: 'application/json' };
-  if (credential.legacy) headers.Authorization = 'Bearer ' + credential.key;
-  if (json) headers['Content-Type'] = 'application/json';
-  return headers;
+  return {
+    ...getSupabaseServerHeaders(credential.key),
+    Accept: 'application/json',
+    ...(json ? { 'Content-Type': 'application/json' } : {}),
+  };
 }
 async function adminFetch(base: string, credential: AdminCredential, path: string, init: RequestInit = {}, timeoutMs = 5000) {
   return fetch(new URL('/rest/v1/' + path.replace(/^\//, ''), base), {
