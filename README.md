@@ -8,7 +8,7 @@ Foresight Paths is a research workspace for source-attributed event mapping, com
 - Event and trajectory mapping with source-attributed inputs.
 - Analysis and scenario tools for research workflows.
 - Server-side Gemini analysis using a configurable model (`GEMINI_MODEL`, default `gemini-3.8-flash`) when a valid API key is configured.
-- Pi SDK v2 direct Testnet identity path with server-side Pioneer token verification; payment approval/completion and paid entitlements remain disabled by release gates.
+- Pi SDK v2 direct Testnet identity path with server-side Pioneer token verification; identity-only mode requests `username` scope and keeps payments/entitlements disabled by release gates.
 
 ## Important limitations
 
