@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getSupabaseServerHeaders } from '@/lib/supabase-server-headers.mjs';
 import { GDELT_BROAD_QUERY, GDELT_FALLBACK_QUERY, GDELT_PRIMARY_TIMEOUT_MS, GDELT_FALLBACK_TIMEOUT_MS, GDELT_REFRESH_INTERVAL_SECONDS, classifyGdeltUpstreamError, parseGdeltResponse } from '@/lib/gdelt.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -154,8 +155,7 @@ async function claimNewsRefresh(): Promise<RefreshClaim> {
   if (!base || !key || key === 'YOUR_SUPABASE_SERVICE_ROLE_KEY') return 'not_configured';
 
   const headers = {
-    apikey: key,
-    Authorization: 'Bearer ' + key,
+    ...getSupabaseServerHeaders(key),
     'Content-Type': 'application/json',
     Accept: 'application/json',
   };
@@ -241,8 +241,7 @@ async function persistNews(articles: NewsItem[]): Promise<string> {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key || key === 'YOUR_SUPABASE_SERVICE_ROLE_KEY') return 'not_configured';
   const headers = {
-    apikey: key,
-    Authorization: 'Bearer ' + key,
+    ...getSupabaseServerHeaders(key),
     'Content-Type': 'application/json',
     Accept: 'application/json',
   };
