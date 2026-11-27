@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main, feat/v1-testnet-direct-mode-rebased]
   push:
-    branches: [main, feat/v1-testnet-direct-mode-rebased, feat/docker-deployment-readiness]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
