@@ -26,6 +26,20 @@ Add the following under **Project → Settings → Environment Variables**, for 
 
 After changing variables, redeploy the relevant environment. Never commit real credentials.
 
+### Supabase private-key troubleshooting
+
+The server-side value in `SUPABASE_SERVICE_ROLE_KEY` must be an elevated key from the **same** `foresight-paths-dev` project:
+
+- Preferred: a modern `sb_secret_...` key from **Supabase → Project Settings → API Keys → Secret keys**.
+- Compatibility only: the legacy `service_role` JWT from the legacy API keys section.
+- Do not use `sb_publishable_...`, the legacy `anon` key, a database password, or a key from the PiRC Supabase project.
+
+The server sends modern secret keys in the `apikey` header only. It sends legacy JWT keys in both `apikey` and `Authorization: Bearer`. The application rejects public or unrecognized key formats before calling private RPCs, and `/api/health` reports the detected key format without returning the key value.
+
+If `/api/news` reports `SUPABASE_SERVER_KEY_MISCONFIGURED`, or Vercel logs show `42501: permission denied for function claim_source_refresh`, replace the Preview value in **Vercel → Project → Settings → Environment Variables** with the correct elevated key for `foresight-paths-dev`, then redeploy the current branch. Never paste the key into chat, logs, source control, Docker build arguments, or any `NEXT_PUBLIC_*` variable.
+
+Do **not** grant the `anon` or `authenticated` roles execute access to private ingestion/payment RPCs to work around a bad key. The RPCs must remain restricted to the server-side elevated role.
+
 ## 2. Pi integration boundary
 
 The backend uses the official Pi Platform API v2:
