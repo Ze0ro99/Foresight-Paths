@@ -19,7 +19,7 @@ test('groups the broad Boolean query and quotes multi-word terms', () => {
 });
 
 test('provides a shorter fallback query for upstream HTML or rejected broad queries', () => {
-  assert.match(GDELT_FALLBACK_QUERY, /^\\(.*\\)$/);
+  assert.ok(GDELT_FALLBACK_QUERY.startsWith('(') && GDELT_FALLBACK_QUERY.endsWith(')'));
   assert.ok(GDELT_FALLBACK_QUERY.length < GDELT_BROAD_QUERY.length);
   assert.match(GDELT_FALLBACK_QUERY, /cyberattack/);
   assert.match(GDELT_FALLBACK_QUERY, /earthquake/);
