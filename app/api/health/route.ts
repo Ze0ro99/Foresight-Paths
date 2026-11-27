@@ -27,8 +27,11 @@ export async function GET() {
     paymentIntentLedger: piIntentLedgerReady ? 'ready_flag_set' : 'disabled',
     paidEntitlements: piEntitlementLedgerEnabled ? 'enabled_flag_set_but_not_implemented' : 'disabled',
     supabaseLedger: supabaseLedgerConfigured
-      ? 'server_credentials_configured'
-      : 'read_only_data_only_private_ledger_key_missing',
+      ? 'server_key_format_valid'
+      : piReadiness.supabaseServerKeyKind === 'missing'
+        ? 'read_only_data_only_private_ledger_key_missing'
+        : 'read_only_data_only_invalid_server_key',
+    supabaseServerKeyKind: piReadiness.supabaseServerKeyKind,
     piPayments: piReadiness.status,
     piPaymentMissingRequirements: piReadiness.missingRequirements,
     piPaymentExecutionEnabled,
