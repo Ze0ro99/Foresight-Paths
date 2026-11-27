@@ -8,7 +8,8 @@ Add the following under **Project → Settings → Environment Variables**, for 
 
 | Variable | Required for | Notes |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | Gemini event analysis | Server-only secret. |
+| `GEMINI_API_KEY` | Gemini event analysis | Server-only secret. Never expose with `NEXT_PUBLIC_`. |
+| `GEMINI_MODEL` | Gemini model selection | Defaults to `gemini-3.8-flash`; override only with a model enabled for the key. |
 | `PI_API_KEY` | Pi server-side identity/payment operations | Testnet app key for Preview; server-only secret. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public read-only Foresight data | Must point to `foresight-paths-dev`, not the PiRC project. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public read-only Foresight data | Publishable key; RLS limits public access to SELECT. |
