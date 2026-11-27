@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabaseServerHeaders } from '@/lib/supabase-server-headers.mjs';
+import { getSupabaseServerHeaders, getSupabaseServerKeyKind } from '@/lib/supabase-server-headers.mjs';
 import { getPiGatewayReadiness } from '@/lib/pi-readiness.mjs';
 import { AUTHORITATIVE_PLAN_PRICES_PI, getRecoverableTestnetPayment } from '@/lib/pi-payment.mjs';
 
@@ -61,6 +61,8 @@ function hasDurableLedger() {
 async function ledgerRpc<T>(name: string, body: Record<string, unknown>): Promise<T | null> {
   const { url, key } = getSupabaseConfig();
   if (!url || !key || key === 'YOUR_SUPABASE_SERVICE_ROLE_KEY') return null;
+  const keyKind = getSupabaseServerKeyKind(key);
+  if (keyKind !== 'secret_key' && keyKind !== 'legacy_service_role_jwt') return null;
   const response = await fetch(`${url}/rest/v1/rpc/${name}`, {
     method: 'POST',
     headers: {
