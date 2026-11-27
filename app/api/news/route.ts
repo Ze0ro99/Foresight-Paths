@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GDELT_BROAD_QUERY, GDELT_FALLBACK_QUERY, GDELT_REFRESH_INTERVAL_SECONDS, classifyGdeltUpstreamError, parseGdeltResponse } from '@/lib/gdelt.mjs';
+import { GDELT_BROAD_QUERY, GDELT_FALLBACK_QUERY, GDELT_PRIMARY_TIMEOUT_MS, GDELT_FALLBACK_TIMEOUT_MS, GDELT_REFRESH_INTERVAL_SECONDS, classifyGdeltUpstreamError, parseGdeltResponse } from '@/lib/gdelt.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
@@ -84,7 +84,7 @@ type GdeltFetchResult = {
   httpStatus: number | null;
 };
 
-async function fetchGdeltArticles(query: string, maxRecords: string): Promise<GdeltFetchResult> {
+async function fetchGdeltArticles(query: string, maxRecords: string, timeoutMs: number): Promise<GdeltFetchResult> {
   const params = new URLSearchParams({
     query,
     mode: 'ArtList',
@@ -96,7 +96,7 @@ async function fetchGdeltArticles(query: string, maxRecords: string): Promise<Gd
   try {
     const response = await fetch('https://api.gdeltproject.org/api/v2/doc/doc?' + params, {
       headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(timeoutMs),
       next: { revalidate: GDELT_REFRESH_INTERVAL_SECONDS },
     });
     const rawPayload = await response.text();
@@ -286,7 +286,7 @@ export async function GET() {
 
   let articles: NewsItem[] = [];
   if (refreshClaim === 'claimed' || refreshClaim === 'not_configured') {
-    const primary = await fetchGdeltArticles(GDELT_BROAD_QUERY, '30');
+    const primary = await fetchGdeltArticles(GDELT_BROAD_QUERY, '30', GDELT_PRIMARY_TIMEOUT_MS);
     articles = primary.articles;
     sourceError = primary.error;
     sourceCauseCode = primary.causeCode;
@@ -295,7 +295,7 @@ export async function GET() {
     // A 200 HTML response is an upstream failure, not a valid empty feed.
     // Retry once with a smaller query to reduce parser/query complexity.
     if (articles.length === 0 && sourceError) {
-      const fallback = await fetchGdeltArticles(GDELT_FALLBACK_QUERY, '20');
+      const fallback = await fetchGdeltArticles(GDELT_FALLBACK_QUERY, '20', GDELT_FALLBACK_TIMEOUT_MS);
       if (fallback.articles.length > 0) {
         articles = fallback.articles;
         sourceError = null;
