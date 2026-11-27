@@ -184,7 +184,7 @@ async function claimNewsRefresh(): Promise<RefreshClaim> {
       console.warn('GDELT refresh lease unavailable', {
         status: response.status,
         supabaseKeyKind: getSupabaseServerKeyKind(key),
-        upstreamError: safeError.replace(/[\\r\\n\\t]+/g, ' '),
+        upstreamError: safeError.replace(/[\r\n\t]+/g, ' '),
       });
       return 'unavailable';
     }
