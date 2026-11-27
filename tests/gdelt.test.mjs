@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   GDELT_BROAD_QUERY,
+  GDELT_FALLBACK_QUERY,
   GDELT_REFRESH_INTERVAL_SECONDS,
   classifyGdeltUpstreamError,
   parseGdeltResponse,
@@ -15,6 +16,13 @@ test('groups the broad Boolean query and quotes multi-word terms', () => {
   assert.match(GDELT_BROAD_QUERY, /^\(.*\)$/);
   assert.match(GDELT_BROAD_QUERY, /"data breach"/);
   assert.match(GDELT_BROAD_QUERY, /"artificial intelligence"/);
+});
+
+test('provides a shorter fallback query for upstream HTML or rejected broad queries', () => {
+  assert.match(GDELT_FALLBACK_QUERY, /^\\(.*\\)$/);
+  assert.ok(GDELT_FALLBACK_QUERY.length < GDELT_BROAD_QUERY.length);
+  assert.match(GDELT_FALLBACK_QUERY, /cyberattack/);
+  assert.match(GDELT_FALLBACK_QUERY, /earthquake/);
 });
 
 test('parses a valid GDELT article-list response', () => {
