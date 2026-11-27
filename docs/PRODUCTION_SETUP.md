@@ -8,21 +8,37 @@ Add the following under **Project → Settings → Environment Variables**, for 
 
 | Variable | Required for | Notes |
 | --- | --- | --- |
-| `GEMINI_API_KEY` | Gemini event analysis | Server-only secret. |
+| `GEMINI_API_KEY` | Gemini event analysis | Server-only secret. Never expose it in the browser bundle. |
+| `GEMINI_MODEL` | Gemini model selection | Defaults to `gemini-3.8-flash`; may be overridden with a model available to the configured Google AI Studio API key. |
 | `PI_API_KEY` | Pi server-side identity/payment operations | Testnet app key for Preview; server-only secret. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public read-only Foresight data | Must point to `foresight-paths-dev`, not the PiRC project. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public read-only Foresight data | Publishable key; RLS limits public access to SELECT. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Private Testnet payment-intent RPCs | Server-only secret; never use a `NEXT_PUBLIC_` prefix. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side private RPCs and ingestion | Server-only Supabase elevated key. Accepts a modern `sb_secret_...` key or legacy JWT `service_role` key; never use a `NEXT_PUBLIC_` prefix. Modern secret keys are sent in `apikey` only; legacy JWT keys also use Bearer authorization. |
 | `PI_NETWORK` | Pi server environment | Must be exactly `Pi Testnet` for this gateway. Mainnet is rejected. |
 | `PI_SANDBOX_MODE` | Pi server environment | `true` by default; `false` only for explicitly enabled direct Testnet mode. |
 | `PI_DIRECT_TESTNET_ENABLED` | Direct Testnet SDK mode | Must be `true` when `PI_SANDBOX_MODE=false`; does not change the app's registered network. |
 | `NEXT_PUBLIC_PI_SANDBOX_MODE` | Pi browser SDK environment | Must match `PI_SANDBOX_MODE`; client-side setting only. |
+| `NEXT_PUBLIC_PI_PAYMENTS_ENABLED` | Pi browser permission scope | `false` for identity-only mode; set `true` only alongside the separately approved server payment gates. |
 | `PI_PAYMENTS_ENABLED` | Pi Testnet approval/completion | `false` by default; Preview-only demo release gate. |
-| `PI_PAYMENT_INTENT_LEDGER_READY` | Private payment-intent persistence | `false` by default; set only when the isolated Supabase private RPCs are configured. |
+| `PI_PAYMENT_INTENT_LEDGER_READY` | Private payment-intent persistence | `false` by default; set only when the isolated Supabase private RPCs are configured. The server adapter sends modern `sb_secret_...` keys through the `apikey` header only, and sends the legacy JWT in both `apikey` and `Authorization: Bearer` for backward compatibility. |
 | `PI_ENTITLEMENT_LEDGER_ENABLED` | Paid credit/entitlement delivery | Must remain `false` until balances, refunds, and entitlement delivery are separately implemented and tested. |
 | `PI_MAINNET_PAYMENTS_APPROVED` | Mainnet payment release | `false` by default; requires the owner’s explicit approval after Testnet end-to-end validation. |
 
 After changing variables, redeploy the relevant environment. Never commit real credentials.
+
+### Supabase private-key troubleshooting
+
+The server-side value in `SUPABASE_SERVICE_ROLE_KEY` must be an elevated key from the **same** `foresight-paths-dev` project:
+
+- Preferred: a modern `sb_secret_...` key from **Supabase → Project Settings → API Keys → Secret keys**.
+- Compatibility only: the legacy `service_role` JWT from the legacy API keys section.
+- Do not use `sb_publishable_...`, the legacy `anon` key, a database password, or a key from the PiRC Supabase project.
+
+The server sends modern secret keys in the `apikey` header only. It sends legacy JWT keys in both `apikey` and `Authorization: Bearer`. The application rejects public or unrecognized key formats before calling private RPCs, and `/api/health` reports the detected key format without returning the key value.
+
+If `/api/news` reports `SUPABASE_SERVER_KEY_MISCONFIGURED`, or Vercel logs show `42501: permission denied for function claim_source_refresh`, replace the Preview value in **Vercel → Project → Settings → Environment Variables** with the correct elevated key for `foresight-paths-dev`, then redeploy the current branch. Never paste the key into chat, logs, source control, Docker build arguments, or any `NEXT_PUBLIC_*` variable.
+
+Do **not** grant the `anon` or `authenticated` roles execute access to private ingestion/payment RPCs to work around a bad key. The RPCs must remain restricted to the server-side elevated role.
 
 ## 2. Pi integration boundary
 
@@ -36,17 +52,17 @@ The backend uses the official Pi Platform API v2:
 
 **Important:** a private Testnet payment-intent ledger and service-role-only RPCs are now deployed in the isolated Foresight Supabase project. This persists idempotent intent state and verifies the Pi transaction read-back, but it does not yet implement product entitlements, prepaid-credit balances, refunds, or merchant settlement. A verified settlement is not the same as granting a prepaid credit or premium entitlement. Do not sell or advertise redeemable credits until those workflows are implemented and tested.
 
-Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, the isolated Foresight Supabase URL, `PI_PAYMENTS_ENABLED=true`, and `PI_PAYMENT_INTENT_LEDGER_READY=true` are all configured in Preview. The registered app is Testnet-only. Direct SDK mode is separately opt-in through `PI_SANDBOX_MODE=false` plus `PI_DIRECT_TESTNET_ENABLED=true` and requires `PI_NETWORK=Pi Testnet`; the app network remains fixed at registration. The previously audited Preview branch scope `feat/v1-testnet-direct-mode` contained the `PI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, and `GEMINI_API_KEY` secret variable entries. That inventory does not prove the variables are available to the rebased PR branch `feat/v1-testnet-direct-mode-rebased`; verify the variable names and environment/branch scope in Vercel before runtime testing, without copying secret values into source control or chat. Their values remain unvalidated through a current-head runtime deployment. The Vercel Preview configuration keeps `PI_PAYMENTS_ENABLED=false`, so payment approval and recovery remain disabled until a current-head deployment, runtime credential checks, and an end-to-end Pi Browser Testnet flow (Sandbox or direct SDK mode) pass. Do not add these variables again unless the branch-scoped inventory or runtime checks show a genuine gap. `PI_ENTITLEMENT_LEDGER_ENABLED` remains false: a verified test payment is recorded, but no prepaid balance or paid feature is granted. The Pi route is hard-locked to Sandbox/Testnet and rejects Mainnet payments. A future Mainnet release requires a separately registered Mainnet Pi app, independent security review, completed entitlements/refunds, and the owner's explicit approval; it is not enabled by this route. The Pi Developer Portal locks an app to the network chosen at registration, so a Testnet app cannot be switched to Mainnet. Rewarded ads remain disabled until a trusted provider callback is integrated and verified server-side.
+Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (modern `sb_secret_...` or legacy service-role JWT), the isolated Foresight Supabase URL, `PI_PAYMENTS_ENABLED=true`, and `PI_PAYMENT_INTENT_LEDGER_READY=true` are all configured in Preview. The registered app is Testnet-only. Direct SDK mode is separately opt-in through `PI_SANDBOX_MODE=false` plus `PI_DIRECT_TESTNET_ENABLED=true` and requires `PI_NETWORK=Pi Testnet`; the app network remains fixed at registration. The Vercel environment inventory is branch-scoped. The rebased branch and Docker PR branch must each have the public Supabase values and explicit Pi network flags assigned to their own Preview scope. Existing branchless Preview secrets may be inherited, but their values cannot be verified from variable-name inventory alone; test each server integration at the exact deployed commit without copying secret values into source control or chat. The Vercel Preview configuration keeps `PI_PAYMENTS_ENABLED=false`, so payment approval and recovery remain disabled until a current-head deployment, runtime credential checks, and an end-to-end Pi Browser Testnet flow (Sandbox or direct SDK mode) pass. Do not add these variables again unless the branch-scoped inventory or runtime checks show a genuine gap. `PI_ENTITLEMENT_LEDGER_ENABLED` remains false: a verified test payment is recorded, but no prepaid balance or paid feature is granted. The Pi route is hard-locked to Sandbox/Testnet and rejects Mainnet payments. A future Mainnet release requires a separately registered Mainnet Pi app, independent security review, completed entitlements/refunds, and the owner's explicit approval; it is not enabled by this route. The Pi Developer Portal locks an app to the network chosen at registration, so a Testnet app cannot be switched to Mainnet. Rewarded ads remain disabled until a trusted provider callback is integrated and verified server-side.
 
 
 ## 3. Pi Developer Portal: Testnet/Sandbox setup
 
 1. Register or select a **Testnet app** in the Pi Developer Portal from Pi Browser. Pi locks an app to its registered network; Mainnet requires a separate app and is not enabled here.
 2. Configure the Testnet app's Development URL and use the Sandbox URL provided by the Portal. Authorize the Sandbox app from Pi Utilities in the Pi app when prompted.
-3. The site loads `https://sdk.minepi.com/pi-sdk.js` and initializes SDK v2 with the configured `NEXT_PUBLIC_PI_SANDBOX_MODE`. Direct mode (`sandbox: false`) is permitted only when the server also has `PI_NETWORK=Pi Testnet` and `PI_DIRECT_TESTNET_ENABLED=true`. The UI requests `username` and `payments` scopes.
-4. Copy the Server API Key for that **Testnet app** to Vercel Project → Settings → Environment Variables as a sensitive, server-only `PI_API_KEY` scoped to Preview and branch `feat/v1-testnet-direct-mode`. Never set a `NEXT_PUBLIC_` prefix or put the key into chat/source control.
+3. The site loads `https://sdk.minepi.com/pi-sdk.js` and initializes SDK v2. Current direct Testnet mode uses `PI_SANDBOX_MODE=false`, `PI_DIRECT_TESTNET_ENABLED=true`, and `NEXT_PUBLIC_PI_SANDBOX_MODE=false`, with `PI_NETWORK=Pi Testnet`. The UI requests only `username` while `NEXT_PUBLIC_PI_PAYMENTS_ENABLED=false`; it asks for `payments` only after that client flag and the separate server payment gates are deliberately enabled.
+4. Copy the Server API Key for that **Testnet app** to Vercel Project → Settings → Environment Variables as a sensitive, server-only `PI_API_KEY` scoped to Preview and the active branch (`feat/v1-testnet-direct-mode-rebased` or `feat/docker-deployment-readiness`). Never set a `NEXT_PUBLIC_` prefix or put the key into chat/source control.
 5. The current Vercel project protects Preview deployments with Vercel Authentication. Pi Browser access to the protected Preview is not verified; do not disable SSO to make the test pass. Use an explicitly approved public HTTPS Testnet URL for the Portal's Development URL before running Pi Browser end-to-end tests.
-6. Keep `PI_PAYMENTS_ENABLED=false` until public Pi Browser access and identity verification succeed. Then, with explicit owner approval, test only the labelled 0.1 and 1 Test-Pi demo plans. The backend verifies Pioneer identity, payment owner, plan, amount, Testnet network, approval, transaction completion, read-back, and private intent state. No paid credits or entitlements are delivered.
+6. For the direct Testnet mode used by the current branch, set `PI_NETWORK=Pi Testnet`, `PI_SANDBOX_MODE=false`, `PI_DIRECT_TESTNET_ENABLED=true`, and `NEXT_PUBLIC_PI_SANDBOX_MODE=false`. Keep `PI_PAYMENTS_ENABLED=false` and `PI_PAYMENT_INTENT_LEDGER_READY=false`; this allows Pi SDK identity testing only. Do not open the payment route until public Pi Browser access and identity verification succeed, the private ledger is configured, and the owner explicitly approves a separate Testnet payment test. No paid credits or entitlements are delivered.
 
 ## 4. Current capability status
 
@@ -54,7 +70,7 @@ Testnet payment approval/completion fail closed unless `PI_API_KEY`, `SUPABASE_S
 | --- | --- |
 | Public Arabic/RTL application | Available |
 | Global sensing | Partial coverage: USGS + NASA EONET polling |
-| Gemini analysis | Requires `GEMINI_API_KEY` |
+| Gemini analysis | Uses `GEMINI_MODEL` (default `gemini-3.8-flash`) and requires a valid `GEMINI_API_KEY`; health checks configuration only, not a live model request |
 | Pi identity | Requires Pi Browser SDK session and server verification |
 | Pi payment approval/completion | Disabled by default; requires `PI_API_KEY`, a durable ledger, and explicit release flags |
 | Private Testnet payment-intent persistence | Implemented in Supabase; branch-scoped server credentials exist, but current-head runtime validation is pending |

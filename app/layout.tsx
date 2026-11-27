@@ -1,28 +1,6 @@
 import type { Metadata } from 'next';
-import { Cairo, IBM_Plex_Sans_Arabic, IBM_Plex_Mono } from 'next/font/google';
 import './globals.css';
 import Script from 'next/script';
-
-const cairo = Cairo({
-  subsets: ['arabic', 'latin'],
-  weight: ['400', '600', '700'],
-  variable: '--font-cairo',
-  display: 'swap',
-});
-
-const ibmPlexArabic = IBM_Plex_Sans_Arabic({
-  subsets: ['arabic', 'latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-plex-arabic',
-  display: 'swap',
-});
-
-const ibmPlexMono = IBM_Plex_Mono({
-  subsets: ['latin'],
-  weight: ['400', '500', '600'],
-  variable: '--font-plex-mono',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'مرصد المسارات الاستشرافي — تحليل المخاطر الرقمية وسيناريو الاستقرار العالمي',
@@ -44,11 +22,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="ar"
-      dir="rtl"
-      className={`${cairo.variable} ${ibmPlexArabic.variable} ${ibmPlexMono.variable}`}
-    >
+    <html lang="ar" dir="rtl">
       <body
         suppressHydrationWarning
         className="bg-[#07070B] text-[#F3F4F6] antialiased selection:bg-[#9333EA]/30 selection:text-white"

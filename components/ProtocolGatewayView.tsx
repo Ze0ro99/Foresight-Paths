@@ -16,6 +16,7 @@ import {
   PIRC_STANDARDS_I18N,
 } from '@/lib/i18n-data';
 import { AppLocale } from '@/lib/types';
+import { getPiAuthScopes } from '@/lib/pi-auth-scopes.mjs';
 
 declare global {
   interface Window {
@@ -563,7 +564,7 @@ export default function ProtocolGatewayView({
         piInitialized.current = true;
       }
       const auth = await window.Pi.authenticate(
-        ['username', 'payments'],
+        getPiAuthScopes(),
         (payment) => {
           setSdkResponseJson(
             JSON.stringify(
