@@ -1,9 +1,10 @@
 # Multi-stage production image for the Next.js standalone output.
 FROM node:22-alpine AS deps
 WORKDIR /app
-COPY package.json ./
-# This branch has no package-lock.json yet.
-RUN npm install --no-audit --no-fund
+COPY package*.json ./
+# Use deterministic installs whenever a lockfile is present; keep this branch
+# buildable until the repository lockfile has been added and reviewed.
+RUN if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
 
 FROM node:22-alpine AS builder
 WORKDIR /app
