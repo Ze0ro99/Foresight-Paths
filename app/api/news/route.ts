@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSupabaseServerHeaders } from '@/lib/supabase-server-headers.mjs';
+import { getSupabaseServerHeaders, getSupabaseServerKeyKind } from '@/lib/supabase-server-headers.mjs';
 import { GDELT_BROAD_QUERY, GDELT_FALLBACK_QUERY, GDELT_PRIMARY_TIMEOUT_MS, GDELT_FALLBACK_TIMEOUT_MS, GDELT_REFRESH_INTERVAL_SECONDS, classifyGdeltUpstreamError, parseGdeltResponse } from '@/lib/gdelt.mjs';
 
 export const dynamic = 'force-dynamic';
@@ -171,7 +171,21 @@ async function claimNewsRefresh(): Promise<RefreshClaim> {
       signal: AbortSignal.timeout(3000),
     });
     if (!response.ok) {
-      console.warn('GDELT refresh lease unavailable', { status: response.status });
+      const rawError = await response.text().catch(() => '');
+      let safeError = 'SUPABASE_HTTP_' + response.status;
+      try {
+        const payload = JSON.parse(rawError) as { code?: string; message?: string };
+        const code = typeof payload.code === 'string' ? payload.code.slice(0, 60) : '';
+        const message = typeof payload.message === 'string' ? payload.message.slice(0, 140) : '';
+        safeError = [code, message].filter(Boolean).join(': ') || safeError;
+      } catch {
+        // Do not log raw upstream bodies; they may contain request metadata.
+      }
+      console.warn('GDELT refresh lease unavailable', {
+        status: response.status,
+        supabaseKeyKind: getSupabaseServerKeyKind(key),
+        upstreamError: safeError.replace(/[\\r\\n\\t]+/g, ' '),
+      });
       return 'unavailable';
     }
     return (await response.json()) === true ? 'claimed' : 'rate_limited';
