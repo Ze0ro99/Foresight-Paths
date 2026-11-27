@@ -26,9 +26,9 @@ test('Edge Function has a narrower GDELT fallback query and bounded timeouts', (
   assert.ok(EDGE_GDELT_FALLBACK_QUERY.startsWith('(') && EDGE_GDELT_FALLBACK_QUERY.endsWith(')'));
   assert.ok(EDGE_GDELT_FALLBACK_QUERY.length < GDELT_BROAD_QUERY.length);
   assert.match(EDGE_GDELT_FALLBACK_QUERY, /cyberattack/);
-  assert.equal(EDGE_GDELT_PRIMARY_TIMEOUT_MS, 7000);
-  assert.equal(EDGE_GDELT_FALLBACK_TIMEOUT_MS, 5000);
-  assert.ok(EDGE_GDELT_PRIMARY_TIMEOUT_MS + EDGE_GDELT_FALLBACK_TIMEOUT_MS <= 12000);
+  assert.equal(EDGE_GDELT_PRIMARY_TIMEOUT_MS, 6000);
+  assert.equal(EDGE_GDELT_FALLBACK_TIMEOUT_MS, 4000);
+  assert.ok(EDGE_GDELT_PRIMARY_TIMEOUT_MS + EDGE_GDELT_FALLBACK_TIMEOUT_MS <= 10000);
 });
 
 test('parses a valid GDELT article-list response', () => {
