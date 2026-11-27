@@ -12,13 +12,13 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     env_file:
-      - path: .env
-        required: false
+      - .env
     environment:
       NODE_ENV: production
       PORT: "3000"
       HOSTNAME: 0.0.0.0
       PI_NETWORK: "Pi Testnet"
+      PI_DIRECT_TESTNET_ENABLED: "false"
       PI_SANDBOX_MODE: "true"
       NEXT_PUBLIC_PI_SANDBOX_MODE: "true"
       PI_PAYMENTS_ENABLED: "false"
