@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { GDELT_BROAD_QUERY, GDELT_REFRESH_INTERVAL_SECONDS, classifyGdeltUpstreamError, parseGdeltResponse } from '@/lib/gdelt.mjs';
+import { GDELT_BROAD_QUERY, GDELT_FALLBACK_QUERY, GDELT_REFRESH_INTERVAL_SECONDS, classifyGdeltUpstreamError, parseGdeltResponse } from '@/lib/gdelt.mjs';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 20;
@@ -48,6 +48,93 @@ function timestamp(value?: string): string | null {
   const iso = value.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, '$1-$2-$3T$4:$5:$6Z');
   const ms = Date.parse(iso);
   return Number.isFinite(ms) && ms <= Date.now() + 300000 ? new Date(ms).toISOString() : null;
+}
+
+
+function normalizeGdeltArticles(rawArticles: Article[]): NewsItem[] {
+  return rawArticles.flatMap((article) => {
+    let url: URL;
+    try {
+      url = new URL(article.url || '');
+    } catch {
+      return [];
+    }
+    const observedAt = timestamp(article.seendate);
+    if (!observedAt || !article.title || !['https:', 'http:'].includes(url.protocol) || url.username || url.password) return [];
+    const category = classifyArticle(article.title);
+    return [{
+      id: url.toString(),
+      category,
+      categoryLabel: labels[category],
+      title: article.title.slice(0, 500),
+      url: url.toString(),
+      observedAt,
+      sourceDomain: (article.domain || url.hostname).slice(0, 160),
+      language: article.language || null,
+      sourceCountry: article.sourcecountry || null,
+      source: 'GDELT DOC 2.0',
+    }];
+  });
+}
+
+type GdeltFetchResult = {
+  articles: NewsItem[];
+  error: string | null;
+  causeCode: string | null;
+  httpStatus: number | null;
+};
+
+async function fetchGdeltArticles(query: string, maxRecords: string): Promise<GdeltFetchResult> {
+  const params = new URLSearchParams({
+    query,
+    mode: 'ArtList',
+    format: 'json',
+    maxrecords: maxRecords,
+    sort: 'DateDesc',
+    timespan: '7d',
+  });
+  try {
+    const response = await fetch('https://api.gdeltproject.org/api/v2/doc/doc?' + params, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(10000),
+      next: { revalidate: GDELT_REFRESH_INTERVAL_SECONDS },
+    });
+    const rawPayload = await response.text();
+    const contentType = response.headers.get('content-type') ?? '';
+    if (!response.ok) {
+      const classified = classifyGdeltUpstreamError(response.status, contentType, rawPayload);
+      return {
+        articles: [],
+        error: classified === 'GDELT_INVALID_RESPONSE' ? 'GDELT_HTTP_' + response.status : classified,
+        causeCode: null,
+        httpStatus: response.status,
+      };
+    }
+    try {
+      const payload = parseGdeltResponse(rawPayload) as { articles: Article[] };
+      return {
+        articles: normalizeGdeltArticles(Array.isArray(payload.articles) ? payload.articles : []),
+        error: null,
+        causeCode: null,
+        httpStatus: response.status,
+      };
+    } catch {
+      return {
+        articles: [],
+        error: classifyGdeltUpstreamError(response.status, contentType, rawPayload),
+        causeCode: null,
+        httpStatus: response.status,
+      };
+    }
+  } catch (error) {
+    const details = error as Error & { cause?: { code?: string } };
+    return {
+      articles: [],
+      error: 'GDELT_' + (error instanceof Error ? error.name : 'UnknownError'),
+      causeCode: typeof details.cause?.code === 'string' ? details.cause.code.slice(0, 80) : null,
+      httpStatus: null,
+    };
+  }
 }
 
 type RefreshClaim = 'claimed' | 'rate_limited' | 'unavailable' | 'not_configured';
@@ -197,89 +284,33 @@ export async function GET() {
   if (refreshClaim === 'rate_limited') sourceError = 'GDELT_REFRESH_THROTTLED';
   if (refreshClaim === 'unavailable') sourceError = 'GDELT_REFRESH_GUARD_UNAVAILABLE';
 
-  const params = new URLSearchParams({
-    query: GDELT_BROAD_QUERY,
-    mode: 'ArtList',
-    format: 'json',
-    maxrecords: '30',
-    sort: 'DateDesc',
-    timespan: '7d',
-  });
   let articles: NewsItem[] = [];
   if (refreshClaim === 'claimed' || refreshClaim === 'not_configured') {
-    try {
-      const response = await fetch('https://api.gdeltproject.org/api/v2/doc/doc?' + params, {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(10000),
-        next: { revalidate: GDELT_REFRESH_INTERVAL_SECONDS },
-      });
-      if (!response.ok) {
-        sourceHttpStatus = response.status;
-        const rawPayload = await response.text().catch(() => '');
-        const classified = classifyGdeltUpstreamError(
-          response.status,
-          response.headers.get('content-type') ?? '',
-          rawPayload,
-        );
-        sourceError = classified === 'GDELT_INVALID_RESPONSE'
-          ? 'GDELT_HTTP_' + response.status
-          : classified;
-        console.warn('GDELT global news request returned an upstream error', {
-          status: response.status,
-          sourceError,
-          preview: rawPayload.slice(0, 160).replace(/\s+/g, ' '),
-        });
+    const primary = await fetchGdeltArticles(GDELT_BROAD_QUERY, '30');
+    articles = primary.articles;
+    sourceError = primary.error;
+    sourceCauseCode = primary.causeCode;
+    sourceHttpStatus = primary.httpStatus;
+
+    // A 200 HTML response is an upstream failure, not a valid empty feed.
+    // Retry once with a smaller query to reduce parser/query complexity.
+    if (articles.length === 0 && sourceError) {
+      const fallback = await fetchGdeltArticles(GDELT_FALLBACK_QUERY, '20');
+      if (fallback.articles.length > 0) {
+        articles = fallback.articles;
+        sourceError = null;
+        sourceCauseCode = null;
+        sourceHttpStatus = fallback.httpStatus;
       } else {
-        sourceHttpStatus = response.status;
-        const rawPayload = await response.text();
-        let payload: { articles: Article[] } | null = null;
-        try {
-          payload = parseGdeltResponse(rawPayload) as { articles: Article[] };
-        } catch {
-          sourceError = classifyGdeltUpstreamError(
-            response.status,
-            response.headers.get('content-type') ?? '',
-            rawPayload,
-          );
-          console.warn('GDELT global news response was not valid JSON', {
-            status: response.status,
-            contentType: response.headers.get('content-type') ?? 'unknown',
-            sourceError,
-            preview: rawPayload.slice(0, 160).replace(/\s+/g, ' '),
-          });
-        }
-        articles = (Array.isArray(payload?.articles) ? payload.articles : []).flatMap((article) => {
-          let url: URL;
-          try {
-            url = new URL(article.url || '');
-          } catch {
-            return [];
-          }
-          const observedAt = timestamp(article.seendate);
-          if (!observedAt || !article.title || !['https:', 'http:'].includes(url.protocol) || url.username || url.password) return [];
-          const category = classifyArticle(article.title);
-          return [{
-            id: url.toString(),
-            category,
-            categoryLabel: labels[category],
-            title: article.title.slice(0, 500),
-            url: url.toString(),
-            observedAt,
-            sourceDomain: (article.domain || url.hostname).slice(0, 160),
-            language: article.language || null,
-            sourceCountry: article.sourcecountry || null,
-            source: 'GDELT DOC 2.0',
-          }];
+        sourceError = fallback.error ?? sourceError;
+        sourceCauseCode = fallback.causeCode ?? sourceCauseCode;
+        sourceHttpStatus = fallback.httpStatus ?? sourceHttpStatus;
+        console.warn('GDELT primary and fallback queries did not return articles', {
+          sourceError,
+          sourceCauseCode,
+          sourceHttpStatus,
         });
       }
-    } catch (error) {
-      const reason = error instanceof Error ? error.name : 'UnknownError';
-      const details = error as Error & { cause?: { code?: string } };
-      sourceCauseCode = typeof details.cause?.code === 'string'
-        ? details.cause.code.slice(0, 80)
-        : null;
-      sourceError = 'GDELT_' + reason;
-      console.warn('GDELT global news fetch failed', { reason, causeCode: sourceCauseCode });
     }
   }
 
