@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getSupabaseServerHeaders } from '@/lib/supabase-server-headers.mjs';
 import { getPiGatewayReadiness } from '@/lib/pi-readiness.mjs';
 import { AUTHORITATIVE_PLAN_PRICES_PI, getRecoverableTestnetPayment } from '@/lib/pi-payment.mjs';
 
@@ -63,8 +64,7 @@ async function ledgerRpc<T>(name: string, body: Record<string, unknown>): Promis
   const response = await fetch(`${url}/rest/v1/rpc/${name}`, {
     method: 'POST',
     headers: {
-      apikey: key,
-      Authorization: 'Bearer ' + key,
+      ...getSupabaseServerHeaders(key),
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
