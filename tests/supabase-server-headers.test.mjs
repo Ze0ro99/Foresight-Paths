@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getSupabaseServerHeaders } from '../lib/supabase-server-headers.mjs';
+import { getSupabaseServerHeaders, getSupabaseServerKeyKind } from '../lib/supabase-server-headers.mjs';
 
 test('sends a modern Supabase secret key through apikey only', () => {
   const headers = getSupabaseServerHeaders('sb_secret_example_key');
@@ -22,4 +22,11 @@ test('trims API keys and rejects empty values', () => {
   });
   assert.deepEqual(getSupabaseServerHeaders('part.one.two.three'), { apikey: 'part.one.two.three' });
   assert.throws(() => getSupabaseServerHeaders('  '), /required/);
+});
+
+test('classifies supported Supabase server key formats without exposing key values', () => {
+  assert.equal(getSupabaseServerKeyKind('sb_secret_example_key'), 'secret_key');
+  assert.equal(getSupabaseServerKeyKind('header.payload.signature'), 'legacy_service_role_jwt');
+  assert.equal(getSupabaseServerKeyKind('part.one.two.three'), 'unrecognized');
+  assert.equal(getSupabaseServerKeyKind(''), 'missing');
 });
