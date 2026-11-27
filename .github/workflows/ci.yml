@@ -2,9 +2,10 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/v1-testnet-direct-mode-rebased]
   push:
-    branches: [main]
+    branches: [main, feat/v1-testnet-direct-mode-rebased, feat/docker-deployment-readiness]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,3 +35,5 @@ jobs:
         run: npx tsc --noEmit
       - name: Production build
         run: npm run build
+      - name: Docker image build
+        run: docker build --tag foresight-paths:ci --build-arg NEXT_PUBLIC_PI_SANDBOX_MODE=false .
