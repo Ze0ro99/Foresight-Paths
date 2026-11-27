@@ -21,11 +21,14 @@ test('trims API keys and rejects empty values', () => {
     apikey: 'sb_secret_example_key',
   });
   assert.deepEqual(getSupabaseServerHeaders('part.one.two.three'), { apikey: 'part.one.two.three' });
+  assert.throws(() => getSupabaseServerHeaders('sb_publishable_example_key'), /elevated Supabase server key/);
+  assert.throws(() => getSupabaseServerHeaders('not-a-key'), /elevated Supabase server key/);
   assert.throws(() => getSupabaseServerHeaders('  '), /required/);
 });
 
 test('classifies supported Supabase server key formats without exposing key values', () => {
   assert.equal(getSupabaseServerKeyKind('sb_secret_example_key'), 'secret_key');
+  assert.equal(getSupabaseServerKeyKind('sb_publishable_example_key'), 'publishable_key');
   assert.equal(getSupabaseServerKeyKind('header.payload.signature'), 'legacy_service_role_jwt');
   assert.equal(getSupabaseServerKeyKind('part.one.two.three'), 'unrecognized');
   assert.equal(getSupabaseServerKeyKind(''), 'missing');
