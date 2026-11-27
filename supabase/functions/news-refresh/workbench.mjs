@@ -1,7 +1,13 @@
 export const GDELT_REFRESH_INTERVAL_SECONDS = 300;
+export const GDELT_PRIMARY_TIMEOUT_MS = 7000;
+export const GDELT_FALLBACK_TIMEOUT_MS = 5000;
+
 
 export const GDELT_BROAD_QUERY =
   '(earthquake OR flood OR wildfire OR hurricane OR volcano OR tsunami OR disaster OR war OR conflict OR ceasefire OR election OR government OR diplomacy OR sanctions OR inflation OR markets OR trade OR recession OR outbreak OR epidemic OR pandemic OR cyberattack OR ransomware OR "data breach" OR science OR space OR technology OR "artificial intelligence" OR oil OR gas OR electricity OR "renewable energy")';
+
+export const GDELT_FALLBACK_QUERY =
+  '(earthquake OR flood OR wildfire OR war OR conflict OR election OR cyberattack OR inflation OR outbreak OR energy)';
 
 const CATEGORIES = new Set([
   'disasters', 'conflict', 'politics', 'economy', 'health', 'cyber', 'science', 'energy', 'other',
