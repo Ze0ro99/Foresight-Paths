@@ -138,7 +138,7 @@ async function fetchGdeltArticles(query: string, maxRecords: string, timeoutMs: 
   }
 }
 
-type RefreshClaim = 'claimed' | 'rate_limited' | 'unavailable' | 'not_configured';
+type RefreshClaim = 'claimed' | 'rate_limited' | 'unavailable' | 'not_configured' | 'misconfigured';
 type PersistedNewsRow = {
   category?: string;
   title?: string;
@@ -153,6 +153,11 @@ async function claimNewsRefresh(): Promise<RefreshClaim> {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key || key === 'YOUR_SUPABASE_SERVICE_ROLE_KEY') return 'not_configured';
+  const keyKind = getSupabaseServerKeyKind(key);
+  if (keyKind !== 'secret_key' && keyKind !== 'legacy_service_role_jwt') {
+    console.warn('GDELT refresh lease skipped because the Supabase server key is not elevated', { supabaseKeyKind: keyKind });
+    return 'misconfigured';
+  }
 
   const headers = {
     ...getSupabaseServerHeaders(key),
@@ -254,6 +259,8 @@ async function persistNews(articles: NewsItem[]): Promise<string> {
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!base || !key || key === 'YOUR_SUPABASE_SERVICE_ROLE_KEY') return 'not_configured';
+  const keyKind = getSupabaseServerKeyKind(key);
+  if (keyKind !== 'secret_key' && keyKind !== 'legacy_service_role_jwt') return 'server_key_misconfigured';
   const headers = {
     ...getSupabaseServerHeaders(key),
     'Content-Type': 'application/json',
@@ -296,6 +303,7 @@ export async function GET() {
   let sourceHttpStatus: number | null = null;
   if (refreshClaim === 'rate_limited') sourceError = 'GDELT_REFRESH_THROTTLED';
   if (refreshClaim === 'unavailable') sourceError = 'GDELT_REFRESH_GUARD_UNAVAILABLE';
+  if (refreshClaim === 'misconfigured') sourceError = 'SUPABASE_SERVER_KEY_MISCONFIGURED';
 
   let articles: NewsItem[] = [];
   if (refreshClaim === 'claimed' || refreshClaim === 'not_configured') {
