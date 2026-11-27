@@ -1,3 +1,4 @@
+import { getSupabaseAdminCredential } from "../_shared/supabase-admin-key.mjs";
 import {
   GDELT_BROAD_QUERY,
   GDELT_REFRESH_INTERVAL_SECONDS,
@@ -44,11 +45,10 @@ function getPublishableKeys() {
 }
 
 function getAdminCredential() {
-  const secrets = parseNamedKeys(Deno.env.get("SUPABASE_SECRET_KEYS"));
-  if (secrets.length > 0) return { key: secrets[0], legacy: false };
-
-  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  return legacy && legacy.length > 20 ? { key: legacy, legacy: true } : null;
+  return getSupabaseAdminCredential(
+    Deno.env.get("SUPABASE_SECRET_KEYS") ?? undefined,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? undefined,
+  );
 }
 
 function getAdminHeaders(credential: { key: string; legacy: boolean }) {
