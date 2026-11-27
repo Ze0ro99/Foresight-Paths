@@ -115,7 +115,7 @@ async function loadCachedNews(
   const response = await fetch(apiUrl(base, "rest/v1/news_items?" + params.toString()), {
     headers: getAdminHeaders(credential),
     cache: "no-store",
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(2000),
   });
   if (!response.ok) throw new Error("NEWS_CACHE_READ_" + response.status);
   const rows = await response.json();
@@ -284,7 +284,7 @@ Deno.serve(async (request: Request) => {
     const claimed = await adminRpc<boolean>(base, credential, "claim_source_refresh", {
       p_source_key: SOURCE_KEY,
       p_min_interval_seconds: GDELT_REFRESH_INTERVAL_SECONDS,
-    });
+    }, 3000);
     if (claimed !== true) {
       let articles = [];
       try {
@@ -338,7 +338,7 @@ Deno.serve(async (request: Request) => {
     const persisted = await adminRpc<number>(base, credential, "ingest_news_batch", {
       p_source_key: SOURCE_KEY,
       p_rows: rows,
-    });
+    }, 5000);
     if (articles.length === 0) {
       let cached: NewsArticle[] = [];
       try {
