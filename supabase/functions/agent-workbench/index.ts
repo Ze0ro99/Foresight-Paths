@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { getSupabaseAdminCredential } from "../_shared/supabase-admin-key.mjs";
 import { buildAgentRunSummary, normalizeCisaKevCatalog } from "./workbench.mjs";
 import { MARKETPLACE_BILLING_PERIODS, MARKETPLACE_CATEGORIES, MARKETPLACE_LICENSES, normalizeMarketplaceCapabilityManifest, parseStroops } from "./marketplace.mjs";
 
@@ -21,17 +22,10 @@ function cleanText(value: unknown, maxLength: number) {
 }
 
 function getServiceKey() {
-  const raw = Deno.env.get("SUPABASE_SECRET_KEYS");
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      if (typeof parsed?.default === "string" && parsed.default.length > 20) return parsed.default;
-    } catch {
-      // Fall through to the legacy server-only key.
-    }
-  }
-  const legacy = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  return legacy && legacy.length > 20 ? legacy : "";
+  return getSupabaseAdminCredential(
+    Deno.env.get("SUPABASE_SECRET_KEYS") ?? undefined,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? undefined,
+  )?.key ?? "";
 }
 
 function getAdminClient() {
