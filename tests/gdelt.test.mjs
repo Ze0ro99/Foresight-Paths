@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {
   GDELT_BROAD_QUERY,
   GDELT_FALLBACK_QUERY,
+  GDELT_PRIMARY_TIMEOUT_MS,
+  GDELT_FALLBACK_TIMEOUT_MS,
   GDELT_REFRESH_INTERVAL_SECONDS,
   classifyGdeltUpstreamError,
   parseGdeltResponse,
@@ -16,6 +18,12 @@ test('groups the broad Boolean query and quotes multi-word terms', () => {
   assert.match(GDELT_BROAD_QUERY, /^\(.*\)$/);
   assert.match(GDELT_BROAD_QUERY, /"data breach"/);
   assert.match(GDELT_BROAD_QUERY, /"artificial intelligence"/);
+});
+
+test('keeps primary and fallback requests within a bounded route budget', () => {
+  assert.equal(GDELT_PRIMARY_TIMEOUT_MS, 7000);
+  assert.equal(GDELT_FALLBACK_TIMEOUT_MS, 5000);
+  assert.ok(GDELT_PRIMARY_TIMEOUT_MS + GDELT_FALLBACK_TIMEOUT_MS <= 12000);
 });
 
 test('provides a shorter fallback query for upstream HTML or rejected broad queries', () => {
