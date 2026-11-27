@@ -20,7 +20,7 @@ test('trims API keys and rejects empty values', () => {
   assert.deepEqual(getSupabaseServerHeaders('  sb_secret_example_key  '), {
     apikey: 'sb_secret_example_key',
   });
-  assert.deepEqual(getSupabaseServerHeaders('part.one.two.three'), { apikey: 'part.one.two.three' });
+  assert.throws(() => getSupabaseServerHeaders('part.one.two.three'), /elevated Supabase server key/);
   assert.throws(() => getSupabaseServerHeaders('sb_publishable_example_key'), /elevated Supabase server key/);
   assert.throws(() => getSupabaseServerHeaders('not-a-key'), /elevated Supabase server key/);
   assert.throws(() => getSupabaseServerHeaders('  '), /required/);
