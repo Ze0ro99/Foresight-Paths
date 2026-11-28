@@ -151,7 +151,7 @@ export default function AgentMarketplacePanel({ locale }: { locale: AppLocale })
         return;
       }
       window.clearInterval(timer);
-      void initializePiSdk(sandbox)
+      void initializePiSdk()
         .then(() => { if (active) setSdkReady(true); })
         .catch((reason: unknown) => { if (active) setSdkError(reason instanceof Error ? reason.message : 'Pi SDK could not initialize.'); });
     }, 250);
