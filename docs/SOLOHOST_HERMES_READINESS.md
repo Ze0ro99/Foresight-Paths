@@ -10,6 +10,18 @@ Status: **documentation and architecture plan only**. This document does not ena
 - The public `pi-node/solohost` repository is readable but is not owned by this project. Its v0 package contract requires a public, pullable, version-tagged image and two validated files: `docker-compose.yml` and `config_options.yml`.
 - Hermes' SoloHost example is a multi-container agent + Web UI package. It is a reference package, not evidence that Foresight Paths has a compatible image or that its agent can safely execute tasks.
 
+## Live Preview audit — 2026-11-28
+
+Checked the Preview deployment for branch `feat/docker-deployment-readiness` (commit `21f9bd8364a66fbb41109dcf68125447d6473764`). This is a point-in-time diagnostic, not a release approval.
+
+- `/api/health`: HTTP 200, reports `operational_with_restricted_features`. It reports the Supabase server credential as a publishable key, the private ledger as not configured, and payment/entitlement/cloud-agent gates as disabled.
+- `/api/news`: HTTP 200 but returned zero articles and `SUPABASE_SERVER_KEY_MISCONFIGURED`; persistence was skipped. The endpoint's HTTP success must not be interpreted as successful news ingestion.
+- `/api/pi/verify`: HTTP 200, reports Pi Testnet and direct Testnet mode, but payment execution and entitlement delivery remain disabled pending private ledger credentials and explicit release gates.
+- Vercel Preview environment metadata for that branch contains a public Supabase URL and publishable key, but no server-only `SUPABASE_SERVICE_ROLE_KEY`. Do not put the service-role secret into a public variable, browser bundle, repository, or this document.
+- This audit did not perform Pi authentication, payment, signing, A2U, x402 settlement, or Mainnet operations.
+
+**Required operator action:** configure a valid server-only Supabase service credential through the approved secret manager, then re-run the health/news checks. Until then, persistent ingestion and payment-ledger checks cannot pass. Keep payment flags disabled; do not use a successful health response as proof of ledger readiness.
+
 ## Target architecture
 
 1. **Foresight Paths web app** remains the user-facing research interface and source-attributed read-only data surface.
