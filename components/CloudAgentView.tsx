@@ -309,7 +309,7 @@ export default function CloudAgentView({
       const auth = await window.Pi.authenticate(['username'], () => undefined);
       if (!auth?.accessToken) throw new Error(ar ? 'لم يُرجع Pi رمز جلسة صالحًا.' : 'Pi did not return a valid session token.');
       setAccessToken(auth.accessToken);
-      setUsername(auth.user?.username || null);
+      // Pi's browser response is not the trusted identity source; the server verifies identity.
       const snapshot = await callWorkbench(auth.accessToken, 'bootstrap');
       applySnapshot(snapshot);
       setNotice(ar ? 'تم التحقق من هويتك وفتح مساحة العمل.' : 'Your Pi identity was verified and your workbench is ready.');
