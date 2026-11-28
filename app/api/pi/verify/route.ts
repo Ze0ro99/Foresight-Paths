@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPiGatewayReadiness } from '@/lib/pi-readiness.mjs';
 import { getSupabaseServerHeaders, getSupabaseServerKeyKind } from '@/lib/supabase-server-headers.mjs';
 import { AUTHORITATIVE_PLAN_PRICES_PI, getRecoverableTestnetPayment } from '@/lib/pi-payment.mjs';
+import { openPiAppStudioSession, PI_APP_SESSION_COOKIE } from '@/lib/pi-appstudio-session.mjs';
 
 export const dynamic = 'force-dynamic';
 
 const PI_API_BASE = 'https://api.minepi.com/v2';
-type PiUser = { uid?: string; username?: string };
+type PiUser = { uid: string; username: string };
 type PiPayment = {
   identifier?: string;
   user_uid?: string;
@@ -43,10 +44,6 @@ function unavailable(message: string, status = 503) {
   );
 }
 
-function getBearer(req: NextRequest) {
-  return req.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-}
-
 function getSupabaseConfig() {
   return {
     url: process.env.NEXT_PUBLIC_SUPABASE_URL?.trim(),
@@ -56,6 +53,19 @@ function getSupabaseConfig() {
 
 function hasDurableLedger() {
   return getPiGatewayReadiness().ledgerConfigured;
+}
+
+function getAuthenticatedPiUser(req: NextRequest): PiUser | null {
+  const secret = process.env.PI_APP_SESSION_SECRET;
+  const cookie = req.cookies.get(PI_APP_SESSION_COOKIE)?.value;
+  if (!secret || !cookie) return null;
+  const session = openPiAppStudioSession(cookie, secret);
+  return session ? { uid: session.uid, username: session.username } : null;
+}
+
+function hasSameOrigin(req: NextRequest) {
+  const origin = req.headers.get('origin');
+  return Boolean(origin && origin === req.nextUrl.origin);
 }
 
 async function ledgerRpc<T>(name: string, body: Record<string, unknown>): Promise<T | null> {
@@ -121,17 +131,6 @@ async function piRequest<T>(
   });
   const data = await response.json().catch(() => null);
   return { ok: response.ok, status: response.status, data };
-}
-
-async function verifyUser(accessToken: string): Promise<PiUser | null> {
-  const response = await fetch(PI_API_BASE + '/me', {
-    headers: { Authorization: 'Bearer ' + accessToken },
-    cache: 'no-store',
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!response.ok) return null;
-  const user = (await response.json().catch(() => null)) as PiUser | null;
-  return user?.uid ? user : null;
 }
 
 function validatePayment(
@@ -314,6 +313,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!hasSameOrigin(req)) return NextResponse.json({ error: 'Same-origin Pi session required.' }, { status: 403 });
   let body: {
     action?: 'auth_me' | 'payment_approve' | 'payment_complete' | 'payment_recover_incomplete' | 'rewarded_ad_verify';
     planId?: string;
@@ -328,34 +328,22 @@ export async function POST(req: NextRequest) {
   }
 
   const action = body.action ?? 'auth_me';
-  const accessToken = getBearer(req);
+  const user = getAuthenticatedPiUser(req);
 
   if (action === 'auth_me') {
-    if (!accessToken) return unavailable('A Pi-authenticated bearer token is required.', 401);
-    try {
-      const user = await verifyUser(accessToken);
-      if (!user) return unavailable('Pi identity verification failed.', 401);
-      return NextResponse.json({
-        verified: true,
-        mode: 'live_pi_api',
-        user: { uid: user.uid, username: user.username ?? null },
-      });
-    } catch {
-      return unavailable('Pi identity service is temporarily unavailable.', 502);
-    }
+    if (!user) return unavailable('A valid App Studio Pi session is required.', 401);
+    return NextResponse.json({ verified: true, mode: 'appstudio_session', user });
   }
 
   if (action === 'payment_recover_incomplete') {
     if (!body.paymentId || !/^[A-Za-z0-9_-]{6,160}$/.test(body.paymentId)) {
       return NextResponse.json({ error: 'A valid paymentId is required.' }, { status: 400 });
     }
-    if (!accessToken) return unavailable('A verified Pi user session is required for payment recovery.', 401);
+    if (!user) return unavailable('A verified App Studio Pi session is required for payment recovery.', 401);
     try {
-      const user = await verifyUser(accessToken);
-      if (!user?.uid) return unavailable('Pi identity verification failed.', 401);
       return await recoverIncompletePayment(body.paymentId, user.uid);
     } catch {
-      return unavailable('Pi identity, incomplete-payment recovery, or private ledger service is temporarily unavailable.', 502);
+      return unavailable('Incomplete-payment recovery or private ledger service is temporarily unavailable.', 502);
     }
   }
 
@@ -369,7 +357,7 @@ export async function POST(req: NextRequest) {
     if (!apiKey || apiKey === 'MY_PI_PLATFORM_SERVER_API_KEY') {
       return unavailable('Testnet Server API Key is not configured.');
     }
-    if (!accessToken) return unavailable('A verified Pi user session is required.', 401);
+    if (!user) return unavailable('A verified App Studio Pi session is required.', 401);
     if (!body.paymentId || !/^[A-Za-z0-9_-]{6,160}$/.test(body.paymentId)) {
       return NextResponse.json({ error: 'A valid paymentId is required.' }, { status: 400 });
     }
@@ -381,9 +369,6 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const user = await verifyUser(accessToken);
-      if (!user?.uid) return unavailable('Pi identity verification failed.', 401);
-
       const paymentPath = '/payments/' + encodeURIComponent(body.paymentId);
       const before = await piRequest<PiPayment>(paymentPath, apiKey);
       if (!before.ok || !validatePayment(before.data, user, body.planId)) {

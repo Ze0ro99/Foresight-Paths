@@ -2,6 +2,13 @@
 
 The public deployment can serve the read-only map without credentials. Optional integrations remain unavailable until their credentials and supporting infrastructure are configured.
 
+
+### Pi Browser and PiNet App Studio authentication
+
+The browser loads `https://sdk.minepi.com/pi-sdk.js` in the document head, awaits `Pi.init({ version: '2.0' })`, then requests only `Pi.authenticate(['username'], onIncompletePaymentFound)`. The browser sends only the returned `accessToken` to `/api/pi/auth`. The server posts it once to App Studio's `/pi/auth/v1/login` endpoint and treats the App Studio `sessionToken`, `user.uid`, and `user.username` as authoritative. Browser-supplied uid/username are ignored.
+
+The App Studio session token is stored encrypted with AES-256-GCM inside the `foresight_pi_session` cookie. The cookie is `HttpOnly; Secure; SameSite=None` for PiNet iframe compatibility. Configure `PI_APP_SESSION_SECRET` as a server-only secret of at least 32 characters in each deployed environment. Do not put the App Studio backend in browser `connect-src`: the exchange happens server-side. The browser CSP allows only `self`, `https://socialchain.app`, the Pi SDK script source, and the registered PiNet frame ancestors. Third-party cookie restrictions still require a real PiNet browser test.
+
 ## 1. Vercel environment variables
 
 Add the following under **Project → Settings → Environment Variables**, for Preview and Production as appropriate:
@@ -11,6 +18,8 @@ Add the following under **Project → Settings → Environment Variables**, for 
 | `GEMINI_API_KEY` | Gemini event analysis | Server-only secret. Never expose with `NEXT_PUBLIC_`. |
 | `GEMINI_MODEL` | Gemini model selection | Defaults to `gemini-3.8-flash`; override only with a model enabled for the key. |
 | `PI_API_KEY` | Pi server-side identity/payment operations | Testnet app key for Preview; server-only secret. |
+
+| `PI_APP_SESSION_SECRET` | Encrypted App Studio PiNet session cookie | Server-only random secret, at least 32 characters. Use the same value on the deployment's environments; never expose it with a `NEXT_PUBLIC_` prefix. |
 | `NEXT_PUBLIC_SUPABASE_URL` | Public read-only Foresight data | Must point to `foresight-paths-dev`, not the PiRC project. |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public read-only Foresight data | Publishable key; RLS limits public access to SELECT. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Private Vercel RPCs: Pi payment intents, CISA cache, Global Sense persistence, URL-inspection rate limits | Server-only elevated key. Accepts a modern `sb_secret_...` key or a legacy JWT with `role=service_role`; rejects publishable/anon/user keys. Never use a `NEXT_PUBLIC_` prefix. The GDELT refresh Edge Function uses Supabase's injected `SUPABASE_SECRET_KEYS` internally. |
