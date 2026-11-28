@@ -250,7 +250,7 @@ export default function CloudAgentView({
         return;
       }
       try {
-        await initializePiSdk(process.env.NEXT_PUBLIC_PI_SANDBOX_MODE !== 'false');
+        await initializePiSdk();
         if (!cancelled) setSdkReady(true);
       } catch {
         if (!cancelled) setSdkError(locale === 'ar' ? 'افتح التطبيق داخل Pi Browser على تطبيق Testnet المسجل.' : 'Open this app in Pi Browser under the registered Testnet app.');
