@@ -18,18 +18,6 @@ import {
 import { AppLocale } from '@/lib/types';
 import { initializePiSdk } from '@/lib/pi-sdk-client';
 
-declare global {
-  interface Window {
-    Pi?: {
-      init: (options: { version: string }) => Promise<void>;
-      authenticate: (
-        scopes: string[],
-        onIncompletePaymentFound: (payment: unknown) => void
-      ) => Promise<{ accessToken: string }>;
-    };
-  }
-}
-
 interface HealthPayload {
   protocol: string;
   status: string;
