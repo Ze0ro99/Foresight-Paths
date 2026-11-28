@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import PiAppStudioSignInPanel from './PiAppStudioSignInPanel';
 type Overview = {
   status: string;
   project?: string;
@@ -94,6 +95,8 @@ export default function TestnetReadinessPanel({ locale }: { locale: string }) {
       </div>
 
       {error && <p role="status" className="mt-3 text-xs text-amber-200">{error}</p>}
+
+      <PiAppStudioSignInPanel locale={locale} />
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
